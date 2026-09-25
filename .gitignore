@@ -1,0 +1,30 @@
+# Visual Studio cache and user files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build outputs & binaries
+x64/
+Debug/
+Release/
+Lighting/x64/
+Lighting/Debug/
+Lighting/Release/
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.tlog
+*.idb
+*.lastbuildstate
+
+# OS & temporary files
+desktop.ini
+._*
+.DS_Store
+Thumbs.db
+*.ppm
+preview_*.png
+initial_view_capture.*
