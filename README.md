@@ -4,6 +4,46 @@ A feature-rich, interactive **3D Classroom Scene** developed in C++ using **Open
 
 ---
 
+## 📺 Project Demo Video
+
+[![Watch the Demo on YouTube](https://img.youtube.com/vi/-0teRdISEI4/maxresdefault.jpg)](https://www.youtube.com/watch?v=-0teRdISEI4)
+
+▶️ **Watch the demonstration on YouTube**: [https://www.youtube.com/watch?v=-0teRdISEI4](https://www.youtube.com/watch?v=-0teRdISEI4)
+
+---
+
+## 📸 Project Screenshots
+
+| Back View (Main Perspective & Robot) | Left Wall (Windows & Outdoor View) |
+| :---: | :---: |
+| ![Back View](Image/Back.png) | ![Left Wall](Image/Left.png) |
+
+| Right Wall (Animated Door, Hallway & Podium) | Original Classroom Reference |
+| :---: | :---: |
+| ![Right Wall](Image/Right.png) | ![Reference Blueprint](Classroom.jpg) |
+
+### Detailed Views & Highlights
+
+#### 1. Back View (Initial Main Perspective)
+Looking down the classroom center aisle towards the chalkboard, wall clock, teacher's podium, student desks, and the continuous "bye-bye" waving robot:
+<p align="center">
+  <img src="Image/Back.png" width="92%" alt="Classroom Back View">
+</p>
+
+#### 2. Left Wall (Realistic Windows & Outdoor Daylight Campus Scenery)
+Architectural hollow white casings, protruding interior stone sill shelf, 6 divided glass panes with mullions, and an outdoor scenery backdrop featuring sunny blue sky, sunlight glow, lawn, and green trees:
+<p align="center">
+  <img src="Image/Left.png" width="92%" alt="Classroom Left Wall View">
+</p>
+
+#### 3. Right Wall (Animated Doorway, Corridor & Lighting)
+Animated door with dynamic wood color transition (deep walnut when closed, shifting to illuminated warm golden honey-oak when open), revealing a modeled school corridor outside with tiled floor and warm ceiling lamp:
+<p align="center">
+  <img src="Image/Right.png" width="92%" alt="Classroom Right Wall View">
+</p>
+
+---
+
 ## 🌟 Features & Highlights
 
 - **Modular Hierarchical Modeling**: All classroom elements (walls, tiled floor, student desks, chairs, teacher podium, laptop, blackboard, clock, ceiling fan, windows, door, and robot) are built hierarchically using unit cubes ($M = M_{\text{parent}} \times T \times R \times S$).
