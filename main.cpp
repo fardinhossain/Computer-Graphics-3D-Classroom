@@ -2244,10 +2244,10 @@ void processInput(GLFWwindow* window)
             translate_Y -= 1.5f * deltaTime; // T + Down: Lower Room Downward (-Y)
 
         // Horizontal Translation (X-axis)
-        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-            translate_X += 1.5f * deltaTime; // T + Left: Shift Room Left (-X)
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-            translate_X -= 1.5f * deltaTime; // T + Right: Shift Room Right (+X)
+            translate_X += 1.5f * deltaTime; // T + Right: Shift Room Right (+X)
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+            translate_X -= 1.5f * deltaTime; // T + Left: Shift Room Left (-X)
 
         // Depth Translation (Z-axis)
         if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
