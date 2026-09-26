@@ -119,7 +119,7 @@ All interactive controls follow a **1 Key = 1 Action** design principle with int
 | | `P` *(or `S`)* | **P** for **P**rojector | Toggles projector spotlight & switches board to white screen |
 | **Reset** | `R` | **R** for **R**eset | Resets camera, room transformations, projector & lights |
 | **Room Rotation** | `X`, `Y`, `Z` | Axes **X, Y, Z** | Tilts, spins, or rolls the room (`Shift` reverses) |
-| **Room Move** | `T` + Arrows | **T** for **T**ranslate | Shifts room Left/Right/Forward/Backward; `T + Y + ↑`/`↓` for Height (Y) |
+| **Room Move** | `T` + Arrows | **T** for **T**ranslate | Shifts room Up/Down/Left/Right; `T + PgUp`/`PgDn` (or `W`/`S`) for Depth |
 | **Room Scale** | `M` + `↑`/`↓` | **M** for **M**agnify | Scales entire classroom larger or smaller |
 | **System** | `Esc` | **Esc**ape | Closes application window |
 

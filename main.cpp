@@ -2229,28 +2229,31 @@ void processInput(GLFWwindow* window)
         }
     }
 
-    // Translation: T + Arrow Keys (T matches Translate!)
-    // - Horizontal: T + Left / Right -> X-axis
-    // - Vertical:   T + Y + Up / Down -> Y-axis (Y matches Y-axis!)
-    // - Depth:      T + Up / Down -> Z-axis
+    // Translation: T + Direction Keys (Super Simple - NO Complex Conditions!)
+    // Hold T (Translate):
+    //   - Up / Down Arrow    : Lift Room Upward (+Y) / Lower Downward (-Y)
+    //   - Left / Right Arrow : Shift Room Left (-X) / Right (+X)
+    //   - PageUp / PageDown  : Move Room Forward (+Z) / Backward (-Z)
+    //   - (Also W / S)       : Move Room Forward (+Z) / Backward (-Z)
     if (translateMode)
     {
-        bool yAxisMode = (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS);
-
+        // Vertical Translation (Y-axis)
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-        {
-            if (yAxisMode) translate_Y += 1.5f * deltaTime; // T + Y + Up: Lift Room Upward (+Y)
-            else           translate_Z += 1.5f * deltaTime; // T + Up: Move Room Forward / Closer (+Z)
-        }
+            translate_Y += 1.5f * deltaTime; // T + Up: Lift Room Upward (+Y)
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-        {
-            if (yAxisMode) translate_Y -= 1.5f * deltaTime; // T + Y + Down: Lower Room Downward (-Y)
-            else           translate_Z -= 1.5f * deltaTime; // T + Down: Move Room Backward / Receding (-Z)
-        }
+            translate_Y -= 1.5f * deltaTime; // T + Down: Lower Room Downward (-Y)
+
+        // Horizontal Translation (X-axis)
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-            translate_X += 1.5f * deltaTime;                // T + Left: Shift room Left (-X)
+            translate_X += 1.5f * deltaTime; // T + Left: Shift Room Left (-X)
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-            translate_X -= 1.5f * deltaTime;                // T + Right: Shift room Right (+X)
+            translate_X -= 1.5f * deltaTime; // T + Right: Shift Room Right (+X)
+
+        // Depth Translation (Z-axis)
+        if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            translate_Z += 1.5f * deltaTime; // T + PageUp or T + W: Forward / Closer (+Z)
+        if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            translate_Z -= 1.5f * deltaTime; // T + PageDown or T + S: Backward / Receding (-Z)
     }
 
     // Scaling: M + Up / Down (M matches Magnify / Scale!)
