@@ -2239,9 +2239,9 @@ void processInput(GLFWwindow* window)
     {
         // Vertical Translation (Y-axis)
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
-            translate_Y += 1.5f * deltaTime; // T + Up: Lift Room Upward (+Y)
+            translate_Y -= 1.5f * deltaTime; // T + Up: Lift Room Upward (visual)
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-            translate_Y -= 1.5f * deltaTime; // T + Down: Lower Room Downward (-Y)
+            translate_Y += 1.5f * deltaTime; // T + Down: Lower Room Downward (visual)
 
         // Horizontal Translation (X-axis)
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
