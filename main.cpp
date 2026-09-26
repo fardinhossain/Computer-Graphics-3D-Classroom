@@ -2156,6 +2156,8 @@ void processInput(GLFWwindow* window)
 
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || 
                          glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+    bool rightCtrlPressed = (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS || 
+                             glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS);
     bool translateMode = (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS);
     bool scaleMode     = (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS);
 
@@ -2231,18 +2233,18 @@ void processInput(GLFWwindow* window)
     {
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
         {
-            if (shiftPressed) translate_Y += 1.5f * deltaTime; // T + Shift + Up: Upward
-            else              translate_Z += 1.5f * deltaTime; // T + Up: Forward
+            if (rightCtrlPressed) translate_Y -= 1.5f * deltaTime; // T + Right Ctrl + Up: Upward (+Y)
+            else                  translate_Z -= 1.5f * deltaTime; // T + Up: Forward (-Z)
         }
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         {
-            if (shiftPressed) translate_Y -= 1.5f * deltaTime; // T + Shift + Down: Downward
-            else              translate_Z -= 1.5f * deltaTime; // T + Down: Backward
+            if (rightCtrlPressed) translate_Y += 1.5f * deltaTime; // T + Right Ctrl + Down: Downward (-Y)
+            else                  translate_Z += 1.5f * deltaTime; // T + Down: Backward (+Z)
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-            translate_X -= 1.5f * deltaTime;                  // T + Left: Left
+            translate_X += 1.5f * deltaTime;                      // T + Left: Shift room Left (-X)
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-            translate_X += 1.5f * deltaTime;                  // T + Right: Right
+            translate_X -= 1.5f * deltaTime;                      // T + Right: Shift room Right (+X)
     }
 
     // Scaling: M + Up / Down (M matches Magnify / Scale!)
