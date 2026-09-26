@@ -22,12 +22,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
-#endif
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -2162,16 +2156,6 @@ void processInput(GLFWwindow* window)
 
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || 
                          glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
-#ifdef _WIN32
-    bool winCtrl = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) ||
-                   ((GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0) ||
-                   ((GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0);
-#else
-    bool winCtrl = false;
-#endif
-    bool rightCtrlPressed = (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS || 
-                             glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
-                             winCtrl);
     bool translateMode = (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS);
     bool scaleMode     = (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS);
 
@@ -2181,10 +2165,7 @@ void processInput(GLFWwindow* window)
         // Forward / Backward / Vertical Altitude Navigation
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) {
-                // Right Ctrl + Up Arrow: Lift Room Upward (+Y) even without holding T
-                translate_Y += 1.5f * deltaTime;
-            } else if (shiftPressed) {
+            if (shiftPressed) {
                 // Shift + Up Arrow: Fly Upward
                 camera.Position.y += moveSpeed * deltaTime;
             } else {
@@ -2194,10 +2175,7 @@ void processInput(GLFWwindow* window)
 
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) {
-                // Right Ctrl + Down Arrow: Lower Room Downward (-Y) even without holding T
-                translate_Y -= 1.5f * deltaTime;
-            } else if (shiftPressed) {
+            if (shiftPressed) {
                 // Shift + Down Arrow: Fly Downward
                 camera.Position.y = std::max(0.2f, camera.Position.y - moveSpeed * deltaTime);
             } else {
@@ -2230,47 +2208,49 @@ void processInput(GLFWwindow* window)
     // ---------------------------------------------------------------------
     // 2. Interactive 3D Room Transformations (Mnemonic & Clean!)
     // ---------------------------------------------------------------------
-    // Rotation: Keys X, Y, Z (Hold Shift to reverse rotation direction)
+    // Rotation: Keys X, Y, Z (Only active when NOT holding T for translation)
     float rotDir = shiftPressed ? -1.0f : 1.0f;
-    if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+    if (!translateMode)
     {
-        rotateAngle_X += rotDir * 20.0f * deltaTime;
-        rotateAxis_X = 1.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 0.0f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
-    {
-        rotateAngle_Y += rotDir * 20.0f * deltaTime;
-        rotateAxis_X = 0.0f; rotateAxis_Y = 1.0f; rotateAxis_Z = 0.0f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
-    {
-        rotateAngle_Z += rotDir * 20.0f * deltaTime;
-        rotateAxis_X = 0.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 1.0f;
+        if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
+        {
+            rotateAngle_X += rotDir * 20.0f * deltaTime;
+            rotateAxis_X = 1.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 0.0f;
+        }
+        if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
+        {
+            rotateAngle_Y += rotDir * 20.0f * deltaTime;
+            rotateAxis_X = 0.0f; rotateAxis_Y = 1.0f; rotateAxis_Z = 0.0f;
+        }
+        if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
+        {
+            rotateAngle_Z += rotDir * 20.0f * deltaTime;
+            rotateAxis_X = 0.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 1.0f;
+        }
     }
 
     // Translation: T + Arrow Keys (T matches Translate!)
+    // - Horizontal: T + Left / Right -> X-axis
+    // - Vertical:   T + Y + Up / Down -> Y-axis (Y matches Y-axis!)
+    // - Depth:      T + Up / Down -> Z-axis
     if (translateMode)
     {
+        bool yAxisMode = (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS);
+
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) translate_Y += 1.5f * deltaTime; // T + Right Ctrl + Up: Upward (+Y)
-            else                  translate_Z += 1.5f * deltaTime; // T + Up: Forward / Closer (+Z)
+            if (yAxisMode) translate_Y += 1.5f * deltaTime; // T + Y + Up: Lift Room Upward (+Y)
+            else           translate_Z += 1.5f * deltaTime; // T + Up: Move Room Forward / Closer (+Z)
         }
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) translate_Y -= 1.5f * deltaTime; // T + Right Ctrl + Down: Downward (-Y)
-            else                  translate_Z -= 1.5f * deltaTime; // T + Down: Backward / Receding (-Z)
+            if (yAxisMode) translate_Y -= 1.5f * deltaTime; // T + Y + Down: Lower Room Downward (-Y)
+            else           translate_Z -= 1.5f * deltaTime; // T + Down: Move Room Backward / Receding (-Z)
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-            translate_X += 1.5f * deltaTime;                      // T + Left: Shift room Left (-X)
+            translate_X += 1.5f * deltaTime;                // T + Left: Shift room Left (-X)
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-            translate_X -= 1.5f * deltaTime;                      // T + Right: Shift room Right (+X)
-
-        // Direct PageUp / PageDown support for quick vertical translation
-        if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS)
-            translate_Y += 1.5f * deltaTime;                      // T + PageUp: Upward (+Y)
-        if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS)
-            translate_Y -= 1.5f * deltaTime;                      // T + PageDown: Downward (-Y)
+            translate_X -= 1.5f * deltaTime;                // T + Right: Shift room Right (+X)
     }
 
     // Scaling: M + Up / Down (M matches Magnify / Scale!)
