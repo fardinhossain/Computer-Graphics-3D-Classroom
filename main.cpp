@@ -22,6 +22,12 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -2156,8 +2162,16 @@ void processInput(GLFWwindow* window)
 
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || 
                          glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+#ifdef _WIN32
+    bool winCtrl = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0) ||
+                   ((GetAsyncKeyState(VK_RCONTROL) & 0x8000) != 0) ||
+                   ((GetAsyncKeyState(VK_LCONTROL) & 0x8000) != 0);
+#else
+    bool winCtrl = false;
+#endif
     bool rightCtrlPressed = (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS || 
-                             glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS);
+                             glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+                             winCtrl);
     bool translateMode = (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS);
     bool scaleMode     = (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS);
 
@@ -2167,7 +2181,10 @@ void processInput(GLFWwindow* window)
         // Forward / Backward / Vertical Altitude Navigation
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
         {
-            if (shiftPressed) {
+            if (rightCtrlPressed) {
+                // Right Ctrl + Up Arrow: Lift Room Upward (+Y) even without holding T
+                translate_Y += 1.5f * deltaTime;
+            } else if (shiftPressed) {
                 // Shift + Up Arrow: Fly Upward
                 camera.Position.y += moveSpeed * deltaTime;
             } else {
@@ -2177,7 +2194,10 @@ void processInput(GLFWwindow* window)
 
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         {
-            if (shiftPressed) {
+            if (rightCtrlPressed) {
+                // Right Ctrl + Down Arrow: Lower Room Downward (-Y) even without holding T
+                translate_Y -= 1.5f * deltaTime;
+            } else if (shiftPressed) {
                 // Shift + Down Arrow: Fly Downward
                 camera.Position.y = std::max(0.2f, camera.Position.y - moveSpeed * deltaTime);
             } else {
@@ -2245,6 +2265,12 @@ void processInput(GLFWwindow* window)
             translate_X += 1.5f * deltaTime;                      // T + Left: Shift room Left (-X)
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
             translate_X -= 1.5f * deltaTime;                      // T + Right: Shift room Right (+X)
+
+        // Direct PageUp / PageDown support for quick vertical translation
+        if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS)
+            translate_Y += 1.5f * deltaTime;                      // T + PageUp: Upward (+Y)
+        if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS)
+            translate_Y -= 1.5f * deltaTime;                      // T + PageDown: Downward (-Y)
     }
 
     // Scaling: M + Up / Down (M matches Magnify / Scale!)
@@ -2320,7 +2346,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT)
     {
-        fanSpeed = max(0.0f, fanSpeed - 60.0f);
+        fanSpeed = std::max(0.0f, fanSpeed - 60.0f);
         cout << "[Ceiling Fan] Speed decreased to " << fanSpeed << " deg/s" << endl;
     }
 
