@@ -14,32 +14,42 @@ A feature-rich, interactive **3D Virtual Classroom & Embedded Robotics Laborator
 
 ## 📸 Project Screenshots
 
-| Back View (Main Perspective & Robot) | Left Wall (Windows & Outdoor View) |
+| Back View (Student Entrance Perspective) | Front View (Teacher Podium Vantage) |
 | :---: | :---: |
-| ![Back View](Image/Back.png) | ![Left Wall](Image/Left.png) |
+| ![Back View](Image/back.png) | ![Front View](Image/front.png) |
 
-| Right Wall (Animated Door, Hallway & Podium) | Original Classroom Reference |
+| Left Wall (Windows & Outdoor Campus View) | Right Wall (Animated Door, Hallway & Lighting) |
 | :---: | :---: |
-| ![Right Wall](Image/Right.png) | ![Reference Blueprint](Classroom.jpg) |
+| ![Left Wall](Image/left.png) | ![Right Wall](Image/right.png) |
+
+| Architectural Reference Blueprint |
+| :---: |
+| ![Reference Blueprint](Classroom.jpg) |
 
 ### Detailed Views & Highlights
 
-#### 1. Back View (Initial Main Perspective)
-Looking down the classroom center aisle towards the chalkboard, wall clock, teacher's podium, student desks, and the continuous "bye-bye" waving robot:
+#### 1. Back View (Student Entrance Perspective)
+Looking down the classroom center aisle towards the chalkboard, wall clock, teacher's podium, student robotics workstations, and the continuous "bye-bye" waving robot:
 <p align="center">
-  <img src="Image/Back.png" width="92%" alt="Classroom Back View">
+  <img src="Image/back.png" width="92%" alt="Classroom Back View">
 </p>
 
-#### 2. Left Wall (Realistic Windows & Outdoor Daylight Campus Scenery)
+#### 2. Front View (Teacher Podium Vantage)
+Front perspective looking back at all student desks, the embedded robotics hardware, laptops, and the rear entrance:
+<p align="center">
+  <img src="Image/front.png" width="92%" alt="Classroom Front View">
+</p>
+
+#### 3. Left Wall (Realistic Windows & Outdoor Daylight Campus Scenery)
 Architectural hollow white casings, protruding interior stone sill shelf, 6 divided glass panes with mullions, and an outdoor scenery backdrop featuring sunny blue sky, sunlight glow, lawn, and green trees:
 <p align="center">
-  <img src="Image/Left.png" width="92%" alt="Classroom Left Wall View">
+  <img src="Image/left.png" width="92%" alt="Classroom Left Wall View">
 </p>
 
-#### 3. Right Wall (Animated Doorway, Corridor & Lighting)
+#### 4. Right Wall (Animated Doorway, Corridor & Lighting)
 Animated door with dynamic wood color transition (deep walnut when closed, shifting to illuminated warm golden honey-oak when open), revealing a modeled school corridor outside with tiled floor and warm ceiling lamp:
 <p align="center">
-  <img src="Image/Right.png" width="92%" alt="Classroom Right Wall View">
+  <img src="Image/right.png" width="92%" alt="Classroom Right Wall View">
 </p>
 
 ---
