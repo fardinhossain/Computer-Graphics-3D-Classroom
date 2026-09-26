@@ -2233,13 +2233,13 @@ void processInput(GLFWwindow* window)
     {
         if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) translate_Y -= 1.5f * deltaTime; // T + Right Ctrl + Up: Upward (+Y)
-            else                  translate_Z -= 1.5f * deltaTime; // T + Up: Forward (-Z)
+            if (rightCtrlPressed) translate_Y += 1.5f * deltaTime; // T + Right Ctrl + Up: Upward (+Y)
+            else                  translate_Z += 1.5f * deltaTime; // T + Up: Forward / Closer (+Z)
         }
         if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
         {
-            if (rightCtrlPressed) translate_Y += 1.5f * deltaTime; // T + Right Ctrl + Down: Downward (-Y)
-            else                  translate_Z += 1.5f * deltaTime; // T + Down: Backward (+Z)
+            if (rightCtrlPressed) translate_Y -= 1.5f * deltaTime; // T + Right Ctrl + Down: Downward (-Y)
+            else                  translate_Z -= 1.5f * deltaTime; // T + Down: Backward / Receding (-Z)
         }
         if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
             translate_X += 1.5f * deltaTime;                      // T + Left: Shift room Left (-X)
