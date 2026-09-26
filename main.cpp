@@ -51,10 +51,10 @@ void drawCube(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 model,
               float r, float g, float b, float spec = 0.3f, float shininess = 32.0f);
 void drawFloor(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 roomBase);
 void drawWallsAndCeiling(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 roomBase);
-void drawStudentDesk(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 deskBase);
+void drawStudentDesk(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 deskBase, bool hasRobotics = false);
 void drawStudentChair(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 chairBase);
-void drawTeacherPodium(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 podiumBase);
-void drawBlackboard(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 boardBase);
+void drawTeacherPodium(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 podiumBase);
+void drawBlackboard(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 boardBase, bool isWhiteboard);
 void drawWallClock(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 clockBase, float clockSecondAngle);
 void drawCeilingFan(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 fanBase, float fanAngle);
 void drawWindow(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 windowBase);
@@ -65,6 +65,12 @@ void drawSpotlightFixture(unsigned int& cubeVAO, Shader& lightingShader, Shader&
                           glm::mat4 fixtureBase, bool isSpotlightOn);
 void drawRobot(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, 
                glm::mat4 robotBase, float waveAngle);
+void drawLaptop(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat, 
+                float posX = -0.28f, float posZ = 0.02f, float deskH = 0.72f, float rotY = 0.0f, float scaleLap = 1.0f);
+void drawEmbeddedKitTable1(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat);
+void drawRoboticArmTable2(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat);
+void drawMobileRoverTable3(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat);
+void drawSpiderBotTable4(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat);
 
 // -------------------------------------------------------------------------
 // Settings & Window Constants
@@ -215,18 +221,23 @@ PointLight pointlight4(
 );
 
 bool pointLightOn = true;
+bool pointLight1On = true;
+bool pointLight2On = true;
+bool pointLight3On = true;
+bool pointLight4On = true;
 
-// Blackboard Spotlight: Mounted at ceiling, pointed directly towards the chalkboard
+// Classroom Ceiling Multimedia Projector (Spotlight): Mounted at ceiling, pointed directly towards the front board
 SpotLight blackboardSpotlight(
     0.0f, 3.85f, -3.2f,        // position
     0.0f, -0.45f, -0.89f,      // direction vector towards the blackboard center
     18.0f, 26.0f,              // inner and outer cutoff angles
     0.05f, 0.05f, 0.05f,       // ambient
-    1.0f, 0.96f, 0.88f,        // diffuse (bright spotlight beam)
+    1.0f, 0.98f, 0.92f,        // diffuse (bright crisp projector beam)
     0.9f, 0.9f, 0.9f,          // specular
     1.0f, 0.07f, 0.017f,       // attenuation
     1
 );
+bool isProjectorOn = false;    // Classroom Projector & Whiteboard Screen toggle
 
 // Timing variables
 float deltaTime = 0.0f;
@@ -369,13 +380,19 @@ int main()
     cout << "   [Mouse Drag]         : Free Look around" << endl;
     cout << endl;
     cout << " Moving Objects & Interactive Features:" << endl;
-    cout << "   [O]                  : Open / Close Classroom Door (Animated!)" << endl;
+    cout << "   [D]                  : Open / Close Classroom Door" << endl;
     cout << "   [Clock Second Hand]  : Rotates Clockwise continuously" << endl;
-    cout << "   [SPACE]              : Toggle Ceiling Fan On / Off" << endl;
+    cout << "   [F]                  : Toggle Ceiling Fan On / Off" << endl;
     cout << "   [+] / [-]            : Increase / Decrease Fan Speed" << endl;
-    cout << "   [L] or [8]           : Toggle Point Lights (Ceiling Lamps)" << endl;
-    cout << "   [K] or [9]           : Toggle Spotlight (Blackboard Lamp)" << endl;
+    cout << "   [5, 6, 7, 8]         : Toggle Point Lights 1, 2, 3, 4 Individually" << endl;
+    cout << "   [L]                  : Toggle All Ceiling Point Lights (Master Switch - Unchanged)" << endl;
+    cout << "   [P] (or [S])         : Toggle Projector & Switch Board to Whiteboard Screen" << endl;
+    cout << "   [R]                  : Reset Camera, Room Transformations & Lights" << endl;
     cout << "==========================================================" << endl;
+
+    // Initialize Projector to standby (OFF) so classroom starts in classic green chalkboard mode
+    isProjectorOn = false;
+    blackboardSpotlight.turnOff();
 
     // ---------------------------------------------------------------------
     // Main Render Loop
@@ -462,7 +479,7 @@ int main()
         drawWallsAndCeiling(cubeVAO, lightingShader, roomBase);
 
         // 2. Blackboard & Wall Clock on the front wall (with clockwise second hand)
-        drawBlackboard(cubeVAO, lightingShader, roomBase);
+        drawBlackboard(cubeVAO, lightingShader, ourShader, roomBase, isProjectorOn);
         drawWallClock(cubeVAO, lightingShader, roomBase, clockSecondAngle);
 
         // 3. Windows (Left Wall with Outdoor View) & Door (Right Wall with Open/Close, Color Shift & Hallway)
@@ -471,21 +488,43 @@ int main()
 
         // 4. Teacher's Podium & Laptop (Front of classroom)
         glm::mat4 podiumModel = glm::translate(roomBase, glm::vec3(0.0f, 0.0f, -4.2f));
-        drawTeacherPodium(cubeVAO, lightingShader, podiumModel);
+        drawTeacherPodium(cubeVAO, lightingShader, ourShader, podiumModel);
 
-        // 5. Student Desks & Chairs (2 Columns x 4 Rows = 8 sets with center aisle)
+        // 5. Student Desks & Chairs (2 Columns x 4 Rows = 8 sets with spacious aisles)
         float colX[2] = { -2.3f, 2.3f };
-        float rowZ[4] = { -2.0f, -0.6f, 0.8f, 2.2f };
+        float rowZ[4] = { -2.2f, -0.6f, 1.0f, 2.6f };
 
         for (int c = 0; c < 2; ++c) {
             for (int r = 0; r < 4; ++r) {
-                // Desk
-                glm::mat4 deskMat = glm::translate(roomBase, glm::vec3(colX[c], 0.0f, rowZ[r]));
-                drawStudentDesk(cubeVAO, lightingShader, deskMat);
+                // Determine if this desk is one of the 4 embedded robotics workstations:
+                bool hasRobotics = ((c == 0 && (r == 0 || r == 1)) || (c == 1 && (r == 1 || r == 2)));
 
-                // Matching Chair directly behind the desk
-                glm::mat4 chairMat = glm::translate(roomBase, glm::vec3(colX[c], 0.0f, rowZ[r] + 0.52f));
+                // Desk (hasRobotics removes previous notebook tab from the desk surface)
+                glm::mat4 deskMat = glm::translate(roomBase, glm::vec3(colX[c], 0.0f, rowZ[r]));
+                drawStudentDesk(cubeVAO, lightingShader, deskMat, hasRobotics);
+
+                // Matching Chair behind the desk (0.46m offset gives realistic tucked-in position and 66cm aisle clearance)
+                glm::mat4 chairMat = glm::translate(roomBase, glm::vec3(colX[c], 0.0f, rowZ[r] + 0.46f));
                 drawStudentChair(cubeVAO, lightingShader, chairMat);
+
+                // Embedded Classroom: If table has robotics, place a student laptop + components (no overlap!)
+                if (hasRobotics) {
+                    drawLaptop(cubeVAO, lightingShader, ourShader, deskMat, -0.28f, 0.02f);
+                }
+
+                if (c == 0 && r == 0) {
+                    // Left Front Table (1st): Microcontroller Kit (Arduino, Breadboard, Ultrasonic & Servo)
+                    drawEmbeddedKitTable1(cubeVAO, lightingShader, ourShader, deskMat);
+                } else if (c == 0 && r == 1) {
+                    // Left 2nd Table: Articulated 3-DOF Robotic Arm with Gripper & Digital Multimeter
+                    drawRoboticArmTable2(cubeVAO, lightingShader, ourShader, deskMat);
+                } else if (c == 1 && r == 1) {
+                    // Right 2nd Table: Robotic Quadruped Spider Bot & IoT Board with OLED Display
+                    drawSpiderBotTable4(cubeVAO, lightingShader, ourShader, deskMat);
+                } else if (c == 1 && r == 2) {
+                    // Right 3rd Table: Autonomous 2-Wheel Mobile Robotics Rover & Parts Organizer
+                    drawMobileRoverTable3(cubeVAO, lightingShader, ourShader, deskMat);
+                }
             }
         }
 
@@ -494,15 +533,16 @@ int main()
         drawCeilingFan(cubeVAO, lightingShader, fanMat, fanAngle);
 
         // 7. Lighting Fixtures
-        // Rectangular ceiling point-light fixtures
+        // Rectangular ceiling point-light fixtures (each independently lit/dimmed)
+        bool pointLightStates[4] = { pointLight1On, pointLight2On, pointLight3On, pointLight4On };
         for (int i = 0; i < 4; ++i) {
             glm::mat4 fixtureMat = glm::translate(roomBase, pointLightPositions[i]);
-            drawCeilingLightFixture(cubeVAO, lightingShader, ourShader, fixtureMat, pointLightOn);
+            drawCeilingLightFixture(cubeVAO, lightingShader, ourShader, fixtureMat, pointLightStates[i]);
         }
 
-        // Directed spotlight fixture
+        // Ceiling Multimedia Projector (Spotlight source illuminating the board)
         glm::mat4 spotFixtureMat = glm::translate(roomBase, blackboardSpotlight.position);
-        drawSpotlightFixture(cubeVAO, lightingShader, ourShader, spotFixtureMat, blackboardSpotlight.isOn);
+        drawSpotlightFixture(cubeVAO, lightingShader, ourShader, spotFixtureMat, isProjectorOn);
 
         // 8. Moving Object: 3D Classroom Robot beside Blackboard (Waving Bye-Bye Hand!)
         glm::mat4 robotMat = glm::translate(roomBase, glm::vec3(3.2f, 0.0f, -5.2f));
@@ -628,7 +668,7 @@ void drawWallsAndCeiling(unsigned int& cubeVAO, Shader& lightingShader, glm::mat
 }
 
 // 3. Student Desk (Warm Honey Wooden Top, Dark Charcoal Legs & Under-desk Apron)
-void drawStudentDesk(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 deskBase)
+void drawStudentDesk(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 deskBase, bool hasRobotics)
 {
     float topWidth = 1.15f;
     float topLength = 0.60f;
@@ -668,67 +708,669 @@ void drawStudentDesk(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 de
     top = glm::scale(top, glm::vec3(topWidth, topThickness, topLength));
     drawCube(cubeVAO, lightingShader, deskBase * top, tr, tg, tb, 0.4f, 48.0f);
 
-    // Small pencil case / notebook accessory on desk
-    glm::mat4 book = glm::mat4(1.0f);
-    book = glm::translate(book, glm::vec3(-0.25f, deskHeight, -0.1f));
-    book = glm::scale(book, glm::vec3(0.25f, 0.015f, 0.18f));
-    drawCube(cubeVAO, lightingShader, deskBase * book, 0.35f, 0.35f, 0.40f);
+    // Small pencil case / notebook accessory on desk (only on regular non-robotics desks)
+    if (!hasRobotics) {
+        glm::mat4 book = glm::mat4(1.0f);
+        book = glm::translate(book, glm::vec3(-0.25f, deskHeight, -0.1f));
+        book = glm::scale(book, glm::vec3(0.25f, 0.015f, 0.18f));
+        drawCube(cubeVAO, lightingShader, deskBase * book, 0.35f, 0.35f, 0.40f);
+    }
 }
 
-// 4. Student Chair (Warm Honey Wooden Seat & Backrest, Dark Legs)
+// 4. Student Chair (Ergonomic Honey Wood Seat & Backrest, Continuous Charcoal Steel Frame - Zero Z-Fighting)
 void drawStudentChair(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 chairBase)
 {
-    float seatW = 0.46f;
-    float seatL = 0.42f;
-    float seatThick = 0.04f;
+    float seatW = 0.44f;
+    float seatThick = 0.035f;
     float seatHeight = 0.44f;
 
-    float legThick = 0.045f;
-    float legH = seatHeight - seatThick;
+    float legThick = 0.040f;
+    float legH = seatHeight - seatThick; // 0.405m
 
-    float lr = 0.16f, lg = 0.15f, lb = 0.14f; // Legs
-    float wr = 0.82f, wg = 0.52f, wb = 0.28f; // Wood
+    float lr = 0.16f, lg = 0.15f, lb = 0.14f; // Charcoal metal frame
+    float wr = 0.82f, wg = 0.52f, wb = 0.28f; // Honey wood
 
-    // 4 Legs
-    float hw = seatW / 2.0f - 0.03f;
-    float hl = seatL / 2.0f - 0.03f;
-    float legX[4] = { -hw, hw - legThick, -hw, hw - legThick };
-    float legZ[4] = { -hl, -hl, hl - legThick, hl - legThick };
+    float hw = seatW / 2.0f - 0.03f; // 0.19m
+    float hl = 0.18f;
 
-    for (int i = 0; i < 4; ++i) {
-        glm::mat4 leg = glm::mat4(1.0f);
-        leg = glm::translate(leg, glm::vec3(legX[i], 0.0f, legZ[i]));
-        leg = glm::scale(leg, glm::vec3(legThick, legH, legThick));
-        drawCube(cubeVAO, lightingShader, chairBase * leg, lr, lg, lb);
-    }
+    // 1. Front Legs (2 legs from floor to under the seat)
+    // Left Front
+    glm::mat4 frontLegL = glm::mat4(1.0f);
+    frontLegL = glm::translate(frontLegL, glm::vec3(-hw, 0.0f, -hl));
+    frontLegL = glm::scale(frontLegL, glm::vec3(legThick, legH, legThick));
+    drawCube(cubeVAO, lightingShader, chairBase * frontLegL, lr, lg, lb);
 
-    // Chair Seat
-    glm::mat4 seat = glm::mat4(1.0f);
-    seat = glm::translate(seat, glm::vec3(-seatW / 2.0f, legH, -seatL / 2.0f));
-    seat = glm::scale(seat, glm::vec3(seatW, seatThick, seatL));
-    drawCube(cubeVAO, lightingShader, chairBase * seat, wr, wg, wb);
+    // Right Front
+    glm::mat4 frontLegR = glm::mat4(1.0f);
+    frontLegR = glm::translate(frontLegR, glm::vec3(hw - legThick, 0.0f, -hl));
+    frontLegR = glm::scale(frontLegR, glm::vec3(legThick, legH, legThick));
+    drawCube(cubeVAO, lightingShader, chairBase * frontLegR, lr, lg, lb);
 
-    // Backrest Upright Posts (Rising from the back edge of the seat)
-    float postH = 0.40f;
+    // 2. Rear Legs & Upright Frame (Continuous vertical steel posts from floor Y=0 to Y=0.74m)
+    float postTotalH = 0.74f;
+
+    // Left Rear Continuous Post
     glm::mat4 postLeft = glm::mat4(1.0f);
-    postLeft = glm::translate(postLeft, glm::vec3(-hw, seatHeight, hl - legThick));
-    postLeft = glm::scale(postLeft, glm::vec3(legThick, postH, legThick));
+    postLeft = glm::translate(postLeft, glm::vec3(-hw, 0.0f, hl - legThick));
+    postLeft = glm::scale(postLeft, glm::vec3(legThick, postTotalH, legThick));
     drawCube(cubeVAO, lightingShader, chairBase * postLeft, lr, lg, lb);
 
+    // Right Rear Continuous Post
     glm::mat4 postRight = glm::mat4(1.0f);
-    postRight = glm::translate(postRight, glm::vec3(hw - legThick, seatHeight, hl - legThick));
-    postRight = glm::scale(postRight, glm::vec3(legThick, postH, legThick));
+    postRight = glm::translate(postRight, glm::vec3(hw - legThick, 0.0f, hl - legThick));
+    postRight = glm::scale(postRight, glm::vec3(legThick, postTotalH, legThick));
     drawCube(cubeVAO, lightingShader, chairBase * postRight, lr, lg, lb);
 
-    // Backrest Panel
+    // Post Molded Black End Caps (Flush on top of the posts)
+    glm::mat4 capL = glm::mat4(1.0f);
+    capL = glm::translate(capL, glm::vec3(-hw - 0.001f, postTotalH, hl - legThick - 0.001f));
+    capL = glm::scale(capL, glm::vec3(legThick + 0.002f, 0.006f, legThick + 0.002f));
+    drawCube(cubeVAO, lightingShader, chairBase * capL, 0.10f, 0.10f, 0.10f);
+
+    glm::mat4 capR = glm::mat4(1.0f);
+    capR = glm::translate(capR, glm::vec3(hw - legThick - 0.001f, postTotalH, hl - legThick - 0.001f));
+    capR = glm::scale(capR, glm::vec3(legThick + 0.002f, 0.006f, legThick + 0.002f));
+    drawCube(cubeVAO, lightingShader, chairBase * capR, 0.10f, 0.10f, 0.10f);
+
+    // 3. Wooden Seat (Contoured classroom seat positioned cleanly in front of rear posts)
+    float seatFrontZ = -hl - 0.025f;
+    float seatBackZ = hl - legThick - 0.006f; // Leaves 6mm clearance in front of rear posts
+    float seatDepth = seatBackZ - seatFrontZ;
+
+    glm::mat4 seat = glm::mat4(1.0f);
+    seat = glm::translate(seat, glm::vec3(-seatW / 2.0f, legH, seatFrontZ));
+    seat = glm::scale(seat, glm::vec3(seatW, seatThick, seatDepth));
+    drawCube(cubeVAO, lightingShader, chairBase * seat, wr, wg, wb, 0.4f, 48.0f);
+
+    // 4. Ergonomic Wooden Backrest (Mounted in FRONT of the upright posts with guaranteed depth separation)
+    // Upright posts occupy Z: [hl - legThick, hl] = [0.140, 0.180]
+    // Backrest occupies Z: [hl - legThick - 0.005f - 0.022f, hl - legThick - 0.005f] = [0.113, 0.135]
+    // Result: 5mm clear air gap between backrest rear face and post front face -> ZERO Z-FIGHTING!
+    float panelW = seatW;
+    float panelH = 0.17f;
+    float panelThick = 0.022f;
+    float panelPosZ = hl - legThick - 0.005f - panelThick;
+    float panelPosY = postTotalH - panelH - 0.020f; // Sits 2cm below post top
+
     glm::mat4 backPanel = glm::mat4(1.0f);
-    backPanel = glm::translate(backPanel, glm::vec3(-seatW / 2.0f, seatHeight + postH - 0.22f, hl - 0.035f));
-    backPanel = glm::scale(backPanel, glm::vec3(seatW, 0.20f, 0.035f));
-    drawCube(cubeVAO, lightingShader, chairBase * backPanel, wr, wg, wb);
+    backPanel = glm::translate(backPanel, glm::vec3(-panelW / 2.0f, panelPosY, panelPosZ));
+    backPanel = glm::scale(backPanel, glm::vec3(panelW, panelH, panelThick));
+    drawCube(cubeVAO, lightingShader, chairBase * backPanel, wr, wg, wb, 0.4f, 48.0f);
+
+    // 5. Metal Backrest Mounting Brackets (Sleek tabs attaching wood to metal posts)
+    float bracketW = legThick - 0.006f;
+    float bracketH = 0.050f;
+    float bracketZ = hl - legThick - 0.005f; // Spans the 5mm gap between panel and post
+
+    glm::mat4 brkL = glm::mat4(1.0f);
+    brkL = glm::translate(brkL, glm::vec3(-hw + 0.003f, panelPosY + 0.06f, bracketZ));
+    brkL = glm::scale(brkL, glm::vec3(bracketW, bracketH, 0.006f));
+    drawCube(cubeVAO, lightingShader, chairBase * brkL, lr, lg, lb);
+
+    glm::mat4 brkR = glm::mat4(1.0f);
+    brkR = glm::translate(brkR, glm::vec3(hw - legThick + 0.003f, panelPosY + 0.06f, bracketZ));
+    brkR = glm::scale(brkR, glm::vec3(bracketW, bracketH, 0.006f));
+    drawCube(cubeVAO, lightingShader, chairBase * brkR, lr, lg, lb);
+
+    // 6. Lower Structural Leg Stretchers / Rungs (Connecting front and rear legs at Y=0.10m)
+    float rungZStart = -hl + legThick;
+    float rungZLength = (hl - legThick) - rungZStart; // Perfectly spans between legs without intersecting them!
+
+    glm::mat4 rungLeft = glm::mat4(1.0f);
+    rungLeft = glm::translate(rungLeft, glm::vec3(-hw + 0.004f, 0.10f, rungZStart));
+    rungLeft = glm::scale(rungLeft, glm::vec3(legThick - 0.008f, 0.020f, rungZLength));
+    drawCube(cubeVAO, lightingShader, chairBase * rungLeft, lr, lg, lb);
+
+    glm::mat4 rungRight = glm::mat4(1.0f);
+    rungRight = glm::translate(rungRight, glm::vec3(hw - legThick + 0.004f, 0.10f, rungZStart));
+    rungRight = glm::scale(rungRight, glm::vec3(legThick - 0.008f, 0.020f, rungZLength));
+    drawCube(cubeVAO, lightingShader, chairBase * rungRight, lr, lg, lb);
+}
+
+// =========================================================================
+// Embedded Classroom: 3D Student Workstation Laptop & Robotics Hardware
+// =========================================================================
+
+// -------------------------------------------------------------------------
+// 3D Student Workstation Laptop (Space-Grey Body, Keyboard, Trackpad & Glowing IDE Screen)
+// -------------------------------------------------------------------------
+void drawLaptop(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat, 
+                float posX, float posZ, float deskH, float rotY, float scaleLap)
+{
+    float lapW = 0.28f * scaleLap;   // Laptop width
+    float lapD = 0.20f * scaleLap;   // Laptop depth
+    float lapH = 0.012f * scaleLap;  // Base chassis thickness
+
+    glm::mat4 lapPivot = glm::translate(deskMat, glm::vec3(posX, deskH, posZ));
+    if (rotY != 0.0f) {
+        lapPivot = glm::rotate(lapPivot, glm::radians(rotY), glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    // 1. Laptop Lower Base Chassis (Space-Grey Anodized Aluminum)
+    lightingShader.use();
+    glm::mat4 base = glm::mat4(1.0f);
+    base = glm::translate(base, glm::vec3(-lapW / 2.0f, 0.0f, -lapD / 2.0f));
+    base = glm::scale(base, glm::vec3(lapW, lapH, lapD));
+    drawCube(cubeVAO, lightingShader, lapPivot * base, 0.24f, 0.25f, 0.27f, 0.6f, 64.0f);
+
+    // 2. Recessed Keyboard Well & Matte Keys
+    glm::mat4 kb = glm::mat4(1.0f);
+    kb = glm::translate(kb, glm::vec3(-0.12f * scaleLap, lapH, -0.08f * scaleLap));
+    kb = glm::scale(kb, glm::vec3(0.24f * scaleLap, 0.003f * scaleLap, 0.10f * scaleLap));
+    drawCube(cubeVAO, lightingShader, lapPivot * kb, 0.12f, 0.12f, 0.13f, 0.2f, 16.0f);
+
+    // Key Row Accents / Spacebar
+    glm::mat4 spacebar = glm::mat4(1.0f);
+    spacebar = glm::translate(spacebar, glm::vec3(-0.04f * scaleLap, lapH + 0.002f * scaleLap, -0.005f * scaleLap));
+    spacebar = glm::scale(spacebar, glm::vec3(0.08f * scaleLap, 0.002f * scaleLap, 0.018f * scaleLap));
+    drawCube(cubeVAO, lightingShader, lapPivot * spacebar, 0.18f, 0.18f, 0.20f);
+
+    // 3. Smooth Trackpad
+    glm::mat4 trackpad = glm::mat4(1.0f);
+    trackpad = glm::translate(trackpad, glm::vec3(-0.045f * scaleLap, lapH + 0.001f * scaleLap, 0.025f * scaleLap));
+    trackpad = glm::scale(trackpad, glm::vec3(0.09f * scaleLap, 0.002f * scaleLap, 0.065f * scaleLap));
+    drawCube(cubeVAO, lightingShader, lapPivot * trackpad, 0.32f, 0.33f, 0.35f, 0.5f, 32.0f);
+
+    // 4. Power & Battery Status LED (Tiny glowing green indicator on the edge)
+    ourShader.use();
+    glm::mat4 pwrLed = glm::mat4(1.0f);
+    pwrLed = glm::translate(pwrLed, glm::vec3(lapW / 2.0f - 0.015f * scaleLap, lapH * 0.5f, lapD / 2.0f - 0.015f * scaleLap));
+    pwrLed = glm::scale(pwrLed, glm::vec3(0.004f * scaleLap, 0.004f * scaleLap, 0.004f * scaleLap));
+    ourShader.setMat4("model", lapPivot * pwrLed);
+    ourShader.setVec3("color", glm::vec3(0.1f, 0.95f, 0.3f));
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // 5. Open Laptop Screen Lid (Tilted -15 degrees towards back, facing the seated user)
+    lightingShader.use();
+    float hingeZ = -lapD / 2.0f + 0.01f * scaleLap;
+    float hingeY = lapH;
+    float lidH = 0.19f * scaleLap;
+    float lidThick = 0.008f * scaleLap;
+
+    glm::mat4 lidPivot = glm::translate(lapPivot, glm::vec3(0.0f, hingeY, hingeZ));
+    lidPivot = glm::rotate(lidPivot, glm::radians(-15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+    // Outer Lid Shell & Bezel
+    glm::mat4 lid = glm::mat4(1.0f);
+    lid = glm::translate(lid, glm::vec3(-lapW / 2.0f, 0.0f, -lidThick));
+    lid = glm::scale(lid, glm::vec3(lapW, lidH, lidThick));
+    drawCube(cubeVAO, lightingShader, lidPivot * lid, 0.22f, 0.23f, 0.25f, 0.6f, 64.0f);
+
+    // 6. Glowing Screen Display (Code Editor / Terminal - rendered unlit with ourShader for vivid luminescence)
+    ourShader.use();
+    glm::mat4 screen = glm::mat4(1.0f);
+    screen = glm::translate(screen, glm::vec3(-lapW / 2.0f + 0.015f * scaleLap, 0.012f * scaleLap, 0.001f));
+    screen = glm::scale(screen, glm::vec3(lapW - 0.030f * scaleLap, lidH - 0.024f * scaleLap, 0.002f));
+    ourShader.setMat4("model", lidPivot * screen);
+    ourShader.setVec3("color", glm::vec3(0.08f, 0.35f, 0.62f)); // Glowing cyan/blue IDE screen
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // IDE Code Lines Accent (Simulating lines of code on display)
+    glm::mat4 code1 = glm::mat4(1.0f);
+    code1 = glm::translate(code1, glm::vec3(-lapW / 2.0f + 0.03f * scaleLap, lidH - 0.05f * scaleLap, 0.002f));
+    code1 = glm::scale(code1, glm::vec3(0.12f * scaleLap, 0.008f * scaleLap, 0.002f));
+    ourShader.setMat4("model", lidPivot * code1);
+    ourShader.setVec3("color", glm::vec3(0.40f, 0.85f, 1.0f)); // Bright syntax highlight line
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    glm::mat4 code2 = glm::mat4(1.0f);
+    code2 = glm::translate(code2, glm::vec3(-lapW / 2.0f + 0.03f * scaleLap, lidH - 0.075f * scaleLap, 0.002f));
+    code2 = glm::scale(code2, glm::vec3(0.16f * scaleLap, 0.008f * scaleLap, 0.002f));
+    ourShader.setMat4("model", lidPivot * code2);
+    ourShader.setVec3("color", glm::vec3(0.30f, 0.95f, 0.45f)); // Green code line
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+}
+
+// -------------------------------------------------------------------------
+// Table 1 (Left Column, Front Desk): Embedded Microcontroller (Arduino Uno), Breadboard, Ultrasonic Sensor & Servo
+// -------------------------------------------------------------------------
+void drawEmbeddedKitTable1(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat)
+{
+    float deskH = 0.72f;
+
+    // USB Connection Cable from Student Laptop (X = -0.14f) to Arduino (X = 0.06f)
+    lightingShader.use();
+    glm::mat4 usbCable = glm::mat4(1.0f);
+    usbCable = glm::translate(usbCable, glm::vec3(-0.14f, deskH + 0.006f, -0.08f));
+    usbCable = glm::scale(usbCable, glm::vec3(0.20f, 0.006f, 0.006f));
+    drawCube(cubeVAO, lightingShader, deskMat * usbCable, 0.10f, 0.10f, 0.12f); // Matte black USB cable
+
+    // 1. Arduino / Microcontroller Development Board (Uno Cyan PCB) on Right-Center
+    glm::mat4 pcb = glm::mat4(1.0f);
+    pcb = glm::translate(pcb, glm::vec3(0.06f, deskH, -0.14f));
+    pcb = glm::scale(pcb, glm::vec3(0.16f, 0.012f, 0.11f));
+    drawCube(cubeVAO, lightingShader, deskMat * pcb, 0.05f, 0.50f, 0.65f, 0.6f, 64.0f); // Teal/cyan board
+
+    // Microcontroller IC Chip (DIP package with silver pin legs)
+    glm::mat4 ic = glm::mat4(1.0f);
+    ic = glm::translate(ic, glm::vec3(0.09f, deskH + 0.012f, -0.085f));
+    ic = glm::scale(ic, glm::vec3(0.07f, 0.010f, 0.022f));
+    drawCube(cubeVAO, lightingShader, deskMat * ic, 0.12f, 0.12f, 0.12f, 0.2f, 16.0f);
+
+    // USB-B Metal Port
+    glm::mat4 usb = glm::mat4(1.0f);
+    usb = glm::translate(usb, glm::vec3(0.05f, deskH + 0.012f, -0.125f));
+    usb = glm::scale(usb, glm::vec3(0.030f, 0.022f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * usb, 0.75f, 0.75f, 0.78f, 0.8f, 64.0f);
+
+    // DC Power Jack
+    glm::mat4 dc = glm::mat4(1.0f);
+    dc = glm::translate(dc, glm::vec3(0.05f, deskH + 0.012f, -0.065f));
+    dc = glm::scale(dc, glm::vec3(0.030f, 0.022f, 0.022f));
+    drawCube(cubeVAO, lightingShader, deskMat * dc, 0.15f, 0.15f, 0.15f);
+
+    // Female Header Strips (Digital & Analog pins)
+    glm::mat4 hdr1 = glm::mat4(1.0f);
+    hdr1 = glm::translate(hdr1, glm::vec3(0.07f, deskH + 0.012f, -0.135f));
+    hdr1 = glm::scale(hdr1, glm::vec3(0.13f, 0.018f, 0.014f));
+    drawCube(cubeVAO, lightingShader, deskMat * hdr1, 0.10f, 0.10f, 0.10f);
+
+    glm::mat4 hdr2 = glm::mat4(1.0f);
+    hdr2 = glm::translate(hdr2, glm::vec3(0.07f, deskH + 0.012f, -0.045f));
+    hdr2 = glm::scale(hdr2, glm::vec3(0.13f, 0.018f, 0.014f));
+    drawCube(cubeVAO, lightingShader, deskMat * hdr2, 0.10f, 0.10f, 0.10f);
+
+    // Status Indicator LEDs (Green Power LED & Amber RX LED)
+    ourShader.use();
+    glm::mat4 pwrLed = glm::mat4(1.0f);
+    pwrLed = glm::translate(pwrLed, glm::vec3(0.16f, deskH + 0.013f, -0.12f));
+    pwrLed = glm::scale(pwrLed, glm::vec3(0.010f, 0.010f, 0.010f));
+    ourShader.setMat4("model", deskMat * pwrLed);
+    ourShader.setVec3("color", glm::vec3(0.1f, 1.0f, 0.2f)); // Glowing Green LED
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    glm::mat4 rxLed = glm::mat4(1.0f);
+    rxLed = glm::translate(rxLed, glm::vec3(0.18f, deskH + 0.013f, -0.12f));
+    rxLed = glm::scale(rxLed, glm::vec3(0.010f, 0.010f, 0.010f));
+    ourShader.setMat4("model", deskMat * rxLed);
+    ourShader.setVec3("color", glm::vec3(1.0f, 0.75f, 0.1f)); // Glowing Amber LED
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // 2. Prototyping Breadboard with Pin Rails & Jumper Wires (Positioned forward at Z = 0.01f)
+    lightingShader.use();
+    glm::mat4 bb = glm::mat4(1.0f);
+    bb = glm::translate(bb, glm::vec3(0.06f, deskH, 0.01f));
+    bb = glm::scale(bb, glm::vec3(0.18f, 0.016f, 0.15f));
+    drawCube(cubeVAO, lightingShader, deskMat * bb, 0.95f, 0.94f, 0.92f, 0.1f, 8.0f); // Off-white breadboard
+
+    // Power Rails (Red positive stripe, Blue negative stripe)
+    glm::mat4 railRed = glm::mat4(1.0f);
+    railRed = glm::translate(railRed, glm::vec3(0.07f, deskH + 0.0165f, 0.015f));
+    railRed = glm::scale(railRed, glm::vec3(0.16f, 0.002f, 0.008f));
+    drawCube(cubeVAO, lightingShader, deskMat * railRed, 0.85f, 0.15f, 0.15f);
+
+    glm::mat4 railBlue = glm::mat4(1.0f);
+    railBlue = glm::translate(railBlue, glm::vec3(0.07f, deskH + 0.0165f, 0.145f));
+    railBlue = glm::scale(railBlue, glm::vec3(0.16f, 0.002f, 0.008f));
+    drawCube(cubeVAO, lightingShader, deskMat * railBlue, 0.15f, 0.35f, 0.85f);
+
+    // Jumper Wires (Red, Blue, Yellow arched wires connecting boards)
+    glm::mat4 wire1 = glm::mat4(1.0f);
+    wire1 = glm::translate(wire1, glm::vec3(0.10f, deskH + 0.018f, -0.04f));
+    wire1 = glm::scale(wire1, glm::vec3(0.008f, 0.014f, 0.06f));
+    drawCube(cubeVAO, lightingShader, deskMat * wire1, 0.9f, 0.2f, 0.1f); // Red jumper wire
+
+    glm::mat4 wire2 = glm::mat4(1.0f);
+    wire2 = glm::translate(wire2, glm::vec3(0.14f, deskH + 0.018f, -0.04f));
+    wire2 = glm::scale(wire2, glm::vec3(0.008f, 0.016f, 0.06f));
+    drawCube(cubeVAO, lightingShader, deskMat * wire2, 0.1f, 0.5f, 0.9f); // Blue jumper wire
+
+    glm::mat4 wire3 = glm::mat4(1.0f);
+    wire3 = glm::translate(wire3, glm::vec3(0.12f, deskH + 0.020f, 0.06f));
+    wire3 = glm::scale(wire3, glm::vec3(0.06f, 0.008f, 0.008f));
+    drawCube(cubeVAO, lightingShader, deskMat * wire3, 0.95f, 0.85f, 0.15f); // Yellow wire
+
+    // 3. HC-SR04 Ultrasonic Distance Sensor Module (Positioned at right edge X = 0.32f)
+    glm::mat4 usPcb = glm::mat4(1.0f);
+    usPcb = glm::translate(usPcb, glm::vec3(0.32f, deskH, -0.12f));
+    usPcb = glm::scale(usPcb, glm::vec3(0.012f, 0.05f, 0.09f));
+    drawCube(cubeVAO, lightingShader, deskMat * usPcb, 0.05f, 0.45f, 0.70f); // Blue PCB vertical
+
+    // Transducer "Eye" 1 (Emitter)
+    glm::mat4 usEye1 = glm::mat4(1.0f);
+    usEye1 = glm::translate(usEye1, glm::vec3(0.332f, deskH + 0.015f, -0.115f));
+    usEye1 = glm::scale(usEye1, glm::vec3(0.028f, 0.028f, 0.032f));
+    drawCube(cubeVAO, lightingShader, deskMat * usEye1, 0.80f, 0.82f, 0.85f, 0.7f, 32.0f);
+
+    // Transducer "Eye" 2 (Receiver)
+    glm::mat4 usEye2 = glm::mat4(1.0f);
+    usEye2 = glm::translate(usEye2, glm::vec3(0.332f, deskH + 0.015f, -0.065f));
+    usEye2 = glm::scale(usEye2, glm::vec3(0.028f, 0.028f, 0.032f));
+    drawCube(cubeVAO, lightingShader, deskMat * usEye2, 0.80f, 0.82f, 0.85f, 0.7f, 32.0f);
+
+    // 4. Micro Servo Motor (SG90 Blue body with white horn) (Positioned at X = 0.31f, Z = 0.03f)
+    glm::mat4 servo = glm::mat4(1.0f);
+    servo = glm::translate(servo, glm::vec3(0.31f, deskH, 0.03f));
+    servo = glm::scale(servo, glm::vec3(0.045f, 0.055f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * servo, 0.10f, 0.35f, 0.85f, 0.5f, 32.0f); // Translucent blue servo body
+
+    // White horn / servo arm
+    glm::mat4 horn = glm::mat4(1.0f);
+    horn = glm::translate(horn, glm::vec3(0.30f, deskH + 0.055f, 0.025f));
+    horn = glm::scale(horn, glm::vec3(0.065f, 0.012f, 0.02f));
+    drawCube(cubeVAO, lightingShader, deskMat * horn, 0.95f, 0.95f, 0.95f);
+}
+
+// -------------------------------------------------------------------------
+// Table 2 (Left Column, Second Desk): 3-DOF Articulated Robotic Arm & Digital Multimeter
+// -------------------------------------------------------------------------
+void drawRoboticArmTable2(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat)
+{
+    float deskH = 0.72f;
+
+    // 1. Desktop Articulated Robotic Arm (Base at X = 0.08f to 0.24f, completely clear of laptop)
+    lightingShader.use();
+    // Heavy circular turntable base
+    glm::mat4 base = glm::mat4(1.0f);
+    base = glm::translate(base, glm::vec3(0.08f, deskH, -0.06f));
+    base = glm::scale(base, glm::vec3(0.16f, 0.03f, 0.16f));
+    drawCube(cubeVAO, lightingShader, deskMat * base, 0.18f, 0.18f, 0.20f, 0.5f, 32.0f);
+
+    // Turntable rotating collar
+    glm::mat4 collar = glm::mat4(1.0f);
+    collar = glm::translate(collar, glm::vec3(0.12f, deskH + 0.03f, -0.02f));
+    collar = glm::scale(collar, glm::vec3(0.08f, 0.035f, 0.08f));
+    drawCube(cubeVAO, lightingShader, deskMat * collar, 0.28f, 0.28f, 0.32f);
+
+    // Shoulder Joint Servo Housing
+    glm::mat4 shoulder = glm::mat4(1.0f);
+    shoulder = glm::translate(shoulder, glm::vec3(0.13f, deskH + 0.065f, -0.01f));
+    shoulder = glm::scale(shoulder, glm::vec3(0.06f, 0.06f, 0.06f));
+    drawCube(cubeVAO, lightingShader, deskMat * shoulder, 0.15f, 0.15f, 0.18f);
+
+    // Lower Arm Link (Angled forward 35 degrees)
+    glm::mat4 lowerArm = glm::mat4(1.0f);
+    lowerArm = glm::translate(lowerArm, glm::vec3(0.14f, deskH + 0.11f, 0.01f));
+    lowerArm = glm::rotate(lowerArm, glm::radians(35.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    lowerArm = glm::scale(lowerArm, glm::vec3(0.04f, 0.16f, 0.04f));
+    drawCube(cubeVAO, lightingShader, deskMat * lowerArm, 0.92f, 0.55f, 0.08f, 0.6f, 64.0f); // Industrial Orange
+
+    // Elbow Joint Servo
+    glm::mat4 elbow = glm::mat4(1.0f);
+    elbow = glm::translate(elbow, glm::vec3(0.13f, deskH + 0.22f, 0.09f));
+    elbow = glm::scale(elbow, glm::vec3(0.06f, 0.05f, 0.055f));
+    drawCube(cubeVAO, lightingShader, deskMat * elbow, 0.18f, 0.18f, 0.22f);
+
+    // Forearm Link (Extending forward)
+    glm::mat4 foreArm = glm::mat4(1.0f);
+    foreArm = glm::translate(foreArm, glm::vec3(0.14f, deskH + 0.22f, 0.12f));
+    foreArm = glm::rotate(foreArm, glm::radians(-40.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    foreArm = glm::scale(foreArm, glm::vec3(0.035f, 0.12f, 0.035f));
+    drawCube(cubeVAO, lightingShader, deskMat * foreArm, 0.92f, 0.55f, 0.08f, 0.6f, 64.0f);
+
+    // Wrist & Gripper Claw
+    glm::mat4 wrist = glm::mat4(1.0f);
+    wrist = glm::translate(wrist, glm::vec3(0.14f, deskH + 0.13f, 0.20f));
+    wrist = glm::scale(wrist, glm::vec3(0.04f, 0.03f, 0.03f));
+    drawCube(cubeVAO, lightingShader, deskMat * wrist, 0.18f, 0.18f, 0.20f);
+
+    // Left Gripper Finger
+    glm::mat4 finger1 = glm::mat4(1.0f);
+    finger1 = glm::translate(finger1, glm::vec3(0.13f, deskH + 0.10f, 0.22f));
+    finger1 = glm::scale(finger1, glm::vec3(0.012f, 0.035f, 0.04f));
+    drawCube(cubeVAO, lightingShader, deskMat * finger1, 0.75f, 0.78f, 0.82f, 0.8f, 64.0f); // Metallic silver claw
+
+    // Right Gripper Finger
+    glm::mat4 finger2 = glm::mat4(1.0f);
+    finger2 = glm::translate(finger2, glm::vec3(0.175f, deskH + 0.10f, 0.22f));
+    finger2 = glm::scale(finger2, glm::vec3(0.012f, 0.035f, 0.04f));
+    drawCube(cubeVAO, lightingShader, deskMat * finger2, 0.75f, 0.78f, 0.82f, 0.8f, 64.0f);
+
+    // Red Sample Testing Block being held by the gripper
+    glm::mat4 sampleBlock = glm::mat4(1.0f);
+    sampleBlock = glm::translate(sampleBlock, glm::vec3(0.145f, deskH + 0.105f, 0.23f));
+    sampleBlock = glm::scale(sampleBlock, glm::vec3(0.028f, 0.028f, 0.028f));
+    drawCube(cubeVAO, lightingShader, deskMat * sampleBlock, 0.90f, 0.15f, 0.15f, 0.5f, 32.0f);
+
+    // 2. Digital Multimeter (Safety Yellow Holster, Positioned at X = 0.32f to 0.42f)
+    glm::mat4 dmm = glm::mat4(1.0f);
+    dmm = glm::translate(dmm, glm::vec3(0.32f, deskH, -0.05f));
+    dmm = glm::scale(dmm, glm::vec3(0.10f, 0.035f, 0.15f));
+    drawCube(cubeVAO, lightingShader, deskMat * dmm, 0.96f, 0.82f, 0.08f); // Vivid multimeter yellow
+
+    // LCD Screen Window (Unlit light grey screen)
+    ourShader.use();
+    glm::mat4 lcd = glm::mat4(1.0f);
+    lcd = glm::translate(lcd, glm::vec3(0.34f, deskH + 0.036f, -0.04f));
+    lcd = glm::scale(lcd, glm::vec3(0.06f, 0.005f, 0.045f));
+    ourShader.setMat4("model", deskMat * lcd);
+    ourShader.setVec3("color", glm::vec3(0.70f, 0.85f, 0.78f)); // LCD greenish-grey
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // Multimeter Rotary Selection Dial
+    lightingShader.use();
+    glm::mat4 dial = glm::mat4(1.0f);
+    dial = glm::translate(dial, glm::vec3(0.35f, deskH + 0.036f, 0.02f));
+    dial = glm::scale(dial, glm::vec3(0.04f, 0.012f, 0.04f));
+    drawCube(cubeVAO, lightingShader, deskMat * dial, 0.12f, 0.12f, 0.14f);
+
+    // Probe Cables (Red and Black leads)
+    glm::mat4 probeRed = glm::mat4(1.0f);
+    probeRed = glm::translate(probeRed, glm::vec3(0.26f, deskH + 0.005f, 0.06f));
+    probeRed = glm::scale(probeRed, glm::vec3(0.06f, 0.01f, 0.015f));
+    drawCube(cubeVAO, lightingShader, deskMat * probeRed, 0.85f, 0.15f, 0.15f); // Red probe wire
+
+    glm::mat4 probeBlack = glm::mat4(1.0f);
+    probeBlack = glm::translate(probeBlack, glm::vec3(0.26f, deskH + 0.005f, 0.085f));
+    probeBlack = glm::scale(probeBlack, glm::vec3(0.06f, 0.01f, 0.015f));
+    drawCube(cubeVAO, lightingShader, deskMat * probeBlack, 0.15f, 0.15f, 0.15f); // Black probe wire
+}
+
+// -------------------------------------------------------------------------
+// Table 3 (Right Column, Second Desk): Robotic Quadruped Spider Bot & Prototyping Board with OLED Display
+// -------------------------------------------------------------------------
+void drawSpiderBotTable4(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat)
+{
+    float deskH = 0.72f;
+
+    // 1. Robotic Quadruped / Spider Bot (Positioned at X = 0.03f to 0.29f, no overlap with laptop at X <= -0.14f)
+    lightingShader.use();
+    // Central Main Body Chassis (Dark graphite & cyan)
+    glm::mat4 body = glm::mat4(1.0f);
+    body = glm::translate(body, glm::vec3(0.10f, deskH + 0.045f, -0.05f));
+    body = glm::scale(body, glm::vec3(0.12f, 0.04f, 0.12f));
+    drawCube(cubeVAO, lightingShader, deskMat * body, 0.18f, 0.20f, 0.24f, 0.5f, 32.0f);
+
+    // Cyan accent racing stripe on body
+    glm::mat4 stripe = glm::mat4(1.0f);
+    stripe = glm::translate(stripe, glm::vec3(0.14f, deskH + 0.086f, -0.05f));
+    stripe = glm::scale(stripe, glm::vec3(0.04f, 0.005f, 0.12f));
+    drawCube(cubeVAO, lightingShader, deskMat * stripe, 0.0f, 0.85f, 0.95f);
+
+    // Glowing Blue Core Beacon
+    ourShader.use();
+    glm::mat4 core = glm::mat4(1.0f);
+    core = glm::translate(core, glm::vec3(0.15f, deskH + 0.088f, -0.01f));
+    core = glm::scale(core, glm::vec3(0.02f, 0.012f, 0.02f));
+    ourShader.setMat4("model", deskMat * core);
+    ourShader.setVec3("color", glm::vec3(0.1f, 0.8f, 1.0f)); // Glowing Cyan Core
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // 4 Articulated Spider Legs (Hip + Thigh + Foot)
+    lightingShader.use();
+    // Leg 1: Front-Left
+    glm::mat4 leg1_hip = glm::mat4(1.0f);
+    leg1_hip = glm::translate(leg1_hip, glm::vec3(0.05f, deskH + 0.055f, -0.08f));
+    leg1_hip = glm::scale(leg1_hip, glm::vec3(0.05f, 0.02f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg1_hip, 0.12f, 0.12f, 0.14f);
+
+    glm::mat4 leg1_foot = glm::mat4(1.0f);
+    leg1_foot = glm::translate(leg1_foot, glm::vec3(0.03f, deskH, -0.09f));
+    leg1_foot = glm::scale(leg1_foot, glm::vec3(0.02f, 0.06f, 0.02f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg1_foot, 0.0f, 0.85f, 0.95f); // Cyan leg segment
+
+    // Leg 2: Front-Right
+    glm::mat4 leg2_hip = glm::mat4(1.0f);
+    leg2_hip = glm::translate(leg2_hip, glm::vec3(0.22f, deskH + 0.055f, -0.08f));
+    leg2_hip = glm::scale(leg2_hip, glm::vec3(0.05f, 0.02f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg2_hip, 0.12f, 0.12f, 0.14f);
+
+    glm::mat4 leg2_foot = glm::mat4(1.0f);
+    leg2_foot = glm::translate(leg2_foot, glm::vec3(0.27f, deskH, -0.09f));
+    leg2_foot = glm::scale(leg2_foot, glm::vec3(0.02f, 0.06f, 0.02f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg2_foot, 0.0f, 0.85f, 0.95f);
+
+    // Leg 3: Rear-Left
+    glm::mat4 leg3_hip = glm::mat4(1.0f);
+    leg3_hip = glm::translate(leg3_hip, glm::vec3(0.05f, deskH + 0.055f, 0.035f));
+    leg3_hip = glm::scale(leg3_hip, glm::vec3(0.05f, 0.02f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg3_hip, 0.12f, 0.12f, 0.14f);
+
+    glm::mat4 leg3_foot = glm::mat4(1.0f);
+    leg3_foot = glm::translate(leg3_foot, glm::vec3(0.03f, deskH, 0.04f));
+    leg3_foot = glm::scale(leg3_foot, glm::vec3(0.02f, 0.06f, 0.02f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg3_foot, 0.0f, 0.85f, 0.95f);
+
+    // Leg 4: Rear-Right
+    glm::mat4 leg4_hip = glm::mat4(1.0f);
+    leg4_hip = glm::translate(leg4_hip, glm::vec3(0.22f, deskH + 0.055f, 0.035f));
+    leg4_hip = glm::scale(leg4_hip, glm::vec3(0.05f, 0.02f, 0.025f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg4_hip, 0.12f, 0.12f, 0.14f);
+
+    glm::mat4 leg4_foot = glm::mat4(1.0f);
+    leg4_foot = glm::translate(leg4_foot, glm::vec3(0.27f, deskH, 0.04f));
+    leg4_foot = glm::scale(leg4_foot, glm::vec3(0.02f, 0.06f, 0.02f));
+    drawCube(cubeVAO, lightingShader, deskMat * leg4_foot, 0.0f, 0.85f, 0.95f);
+
+    // Top Mini Pan-Tilt Camera Head
+    glm::mat4 camHead = glm::mat4(1.0f);
+    camHead = glm::translate(camHead, glm::vec3(0.14f, deskH + 0.088f, -0.065f));
+    camHead = glm::scale(camHead, glm::vec3(0.04f, 0.035f, 0.035f));
+    drawCube(cubeVAO, lightingShader, deskMat * camHead, 0.10f, 0.10f, 0.12f);
+
+    // 2. Embedded IoT Prototyping Board with Glowing OLED Display (Positioned at X = 0.33f to 0.46f)
+    glm::mat4 iotBoard = glm::mat4(1.0f);
+    iotBoard = glm::translate(iotBoard, glm::vec3(0.33f, deskH, -0.08f));
+    iotBoard = glm::scale(iotBoard, glm::vec3(0.13f, 0.014f, 0.10f));
+    drawCube(cubeVAO, lightingShader, deskMat * iotBoard, 0.08f, 0.50f, 0.20f); // Forest green PCB
+
+    // Metal RF Shielding Can (ESP32 module)
+    glm::mat4 rfCan = glm::mat4(1.0f);
+    rfCan = glm::translate(rfCan, glm::vec3(0.35f, deskH + 0.014f, -0.03f));
+    rfCan = glm::scale(rfCan, glm::vec3(0.045f, 0.015f, 0.045f));
+    drawCube(cubeVAO, lightingShader, deskMat * rfCan, 0.80f, 0.82f, 0.85f, 0.8f, 64.0f);
+
+    // Glowing 0.96" OLED Display Screen (Rendered with unlit ourShader)
+    ourShader.use();
+    glm::mat4 oled = glm::mat4(1.0f);
+    oled = glm::translate(oled, glm::vec3(0.40f, deskH + 0.016f, -0.07f));
+    oled = glm::scale(oled, glm::vec3(0.045f, 0.008f, 0.035f));
+    ourShader.setMat4("model", deskMat * oled);
+    ourShader.setVec3("color", glm::vec3(0.15f, 0.65f, 1.0f)); // Bright Electric Blue OLED Screen!
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // Rechargeable LiPo Battery Pack
+    lightingShader.use();
+    glm::mat4 lipo = glm::mat4(1.0f);
+    lipo = glm::translate(lipo, glm::vec3(0.34f, deskH, 0.05f));
+    lipo = glm::scale(lipo, glm::vec3(0.09f, 0.022f, 0.05f));
+    drawCube(cubeVAO, lightingShader, deskMat * lipo, 0.85f, 0.85f, 0.85f, 0.7f, 32.0f); // Silver pouch cell
+}
+
+// -------------------------------------------------------------------------
+// Table 4 (Right Column, Third Desk): Autonomous Mobile Robotics Rover (Line Follower / Obstacle Avoidance)
+// -------------------------------------------------------------------------
+void drawMobileRoverTable3(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 deskMat)
+{
+    float deskH = 0.72f;
+
+    // 1. Mobile Robot Car Platform (Positioned at X = 0.045f to 0.255f, no overlap with laptop at X <= -0.14f)
+    lightingShader.use();
+    // Lower Acrylic Chassis Plate
+    glm::mat4 plate = glm::mat4(1.0f);
+    plate = glm::translate(plate, glm::vec3(0.07f, deskH + 0.025f, -0.10f));
+    plate = glm::scale(plate, glm::vec3(0.16f, 0.010f, 0.19f));
+    drawCube(cubeVAO, lightingShader, deskMat * plate, 0.15f, 0.25f, 0.38f, 0.6f, 64.0f); // Dark translucent blue acrylic
+
+    // Left Drive Wheel (Rubber Tire)
+    glm::mat4 leftWheel = glm::mat4(1.0f);
+    leftWheel = glm::translate(leftWheel, glm::vec3(0.045f, deskH, 0.0f));
+    leftWheel = glm::scale(leftWheel, glm::vec3(0.025f, 0.065f, 0.065f));
+    drawCube(cubeVAO, lightingShader, deskMat * leftWheel, 0.12f, 0.12f, 0.14f); // Black rubber tire
+
+    // Left Yellow Motor Gearbox
+    glm::mat4 leftMotor = glm::mat4(1.0f);
+    leftMotor = glm::translate(leftMotor, glm::vec3(0.075f, deskH + 0.015f, 0.01f));
+    leftMotor = glm::scale(leftMotor, glm::vec3(0.035f, 0.025f, 0.045f));
+    drawCube(cubeVAO, lightingShader, deskMat * leftMotor, 0.95f, 0.80f, 0.10f); // Yellow TT motor
+
+    // Right Drive Wheel (Rubber Tire)
+    glm::mat4 rightWheel = glm::mat4(1.0f);
+    rightWheel = glm::translate(rightWheel, glm::vec3(0.23f, deskH, 0.0f));
+    rightWheel = glm::scale(rightWheel, glm::vec3(0.025f, 0.065f, 0.065f));
+    drawCube(cubeVAO, lightingShader, deskMat * rightWheel, 0.12f, 0.12f, 0.14f);
+
+    // Right Yellow Motor Gearbox
+    glm::mat4 rightMotor = glm::mat4(1.0f);
+    rightMotor = glm::translate(rightMotor, glm::vec3(0.195f, deskH + 0.015f, 0.01f));
+    rightMotor = glm::scale(rightMotor, glm::vec3(0.035f, 0.025f, 0.045f));
+    drawCube(cubeVAO, lightingShader, deskMat * rightMotor, 0.95f, 0.80f, 0.10f);
+
+    // Front Caster Roller
+    glm::mat4 caster = glm::mat4(1.0f);
+    caster = glm::translate(caster, glm::vec3(0.135f, deskH, -0.08f));
+    caster = glm::scale(caster, glm::vec3(0.03f, 0.025f, 0.03f));
+    drawCube(cubeVAO, lightingShader, deskMat * caster, 0.85f, 0.75f, 0.25f); // Brass caster ball
+
+    // Battery Holder Box (4x AA black box on upper deck)
+    glm::mat4 battBox = glm::mat4(1.0f);
+    battBox = glm::translate(battBox, glm::vec3(0.09f, deskH + 0.035f, 0.01f));
+    battBox = glm::scale(battBox, glm::vec3(0.11f, 0.030f, 0.07f));
+    drawCube(cubeVAO, lightingShader, deskMat * battBox, 0.15f, 0.15f, 0.15f);
+
+    // Red Motor Driver Shield (L298N module)
+    glm::mat4 driver = glm::mat4(1.0f);
+    driver = glm::translate(driver, glm::vec3(0.09f, deskH + 0.035f, -0.06f));
+    driver = glm::scale(driver, glm::vec3(0.07f, 0.015f, 0.06f));
+    drawCube(cubeVAO, lightingShader, deskMat * driver, 0.80f, 0.15f, 0.15f); // Red driver board
+
+    // Black Finned Aluminum Heat Sink on motor driver
+    glm::mat4 heatSink = glm::mat4(1.0f);
+    heatSink = glm::translate(heatSink, glm::vec3(0.105f, deskH + 0.05f, -0.05f));
+    heatSink = glm::scale(heatSink, glm::vec3(0.04f, 0.035f, 0.04f));
+    drawCube(cubeVAO, lightingShader, deskMat * heatSink, 0.10f, 0.10f, 0.10f, 0.8f, 64.0f);
+
+    // Front Bumper Obstacle Sensor (Ultrasonic eyes looking forward)
+    glm::mat4 eyes = glm::mat4(1.0f);
+    eyes = glm::translate(eyes, glm::vec3(0.10f, deskH + 0.04f, -0.11f));
+    eyes = glm::scale(eyes, glm::vec3(0.10f, 0.03f, 0.015f));
+    drawCube(cubeVAO, lightingShader, deskMat * eyes, 0.75f, 0.78f, 0.82f);
+
+    // Glowing Power Indicator on Rover
+    ourShader.use();
+    glm::mat4 roverLed = glm::mat4(1.0f);
+    roverLed = glm::translate(roverLed, glm::vec3(0.16f, deskH + 0.045f, -0.03f));
+    roverLed = glm::scale(roverLed, glm::vec3(0.012f, 0.012f, 0.012f));
+    ourShader.setMat4("model", deskMat * roverLed);
+    ourShader.setVec3("color", glm::vec3(0.1f, 0.95f, 0.2f)); // Glowing Green LED
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+
+    // 2. Hardware / Electronics Component Organizer Box (Positioned at X = 0.32f to 0.47f)
+    lightingShader.use();
+    glm::mat4 box = glm::mat4(1.0f);
+    box = glm::translate(box, glm::vec3(0.32f, deskH, -0.06f));
+    box = glm::scale(box, glm::vec3(0.15f, 0.030f, 0.14f));
+    drawCube(cubeVAO, lightingShader, deskMat * box, 0.35f, 0.50f, 0.65f, 0.6f, 32.0f); // Translucent blue parts box
+
+    // Compartment dividers
+    glm::mat4 div1 = glm::mat4(1.0f);
+    div1 = glm::translate(div1, glm::vec3(0.39f, deskH + 0.015f, -0.06f));
+    div1 = glm::scale(div1, glm::vec3(0.012f, 0.025f, 0.14f));
+    drawCube(cubeVAO, lightingShader, deskMat * div1, 0.25f, 0.40f, 0.55f);
 }
 
 // 5. Teacher's Podium with Laptop/Monitor
-void drawTeacherPodium(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 podiumBase)
+void drawTeacherPodium(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 podiumBase)
 {
     float podW = 2.0f;
     float podD = 0.9f;
@@ -760,72 +1402,74 @@ void drawTeacherPodium(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 
     top = glm::scale(top, glm::vec3(podW + 0.1f, 0.06f, podD + 0.1f));
     drawCube(cubeVAO, lightingShader, podiumBase * top, 0.76f, 0.46f, 0.25f, 0.4f, 48.0f);
 
-    // --- Laptop / Monitor on Teacher's Desk ---
-    float mr = 0.15f, mg = 0.15f, mb = 0.16f; // Dark plastic
-    // Base
-    glm::mat4 lapBase = glm::mat4(1.0f);
-    lapBase = glm::translate(lapBase, glm::vec3(-0.25f, podH + 0.06f, -0.15f));
-    lapBase = glm::scale(lapBase, glm::vec3(0.50f, 0.02f, 0.35f));
-    drawCube(cubeVAO, lightingShader, podiumBase * lapBase, mr, mg, mb);
+    // --- Teacher's Laptop (Oriented facing the teacher, illuminated IDE screen) ---
+    drawLaptop(cubeVAO, lightingShader, ourShader, podiumBase, 0.0f, -0.08f, podH + 0.06f, 180.0f, 1.25f);
 
-    // Angled Monitor Screen
-    glm::mat4 lapScreen = glm::mat4(1.0f);
-    lapScreen = glm::translate(lapScreen, glm::vec3(-0.25f, podH + 0.08f, -0.15f));
-    lapScreen = glm::rotate(lapScreen, glm::radians(-15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    lapScreen = glm::scale(lapScreen, glm::vec3(0.50f, 0.32f, 0.025f));
-    drawCube(cubeVAO, lightingShader, podiumBase * lapScreen, mr, mg, mb);
-
-    // Screen Display Surface
-    glm::mat4 screenFace = glm::mat4(1.0f);
-    screenFace = glm::translate(screenFace, glm::vec3(-0.23f, podH + 0.10f, -0.145f));
-    screenFace = glm::rotate(screenFace, glm::radians(-15.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    screenFace = glm::scale(screenFace, glm::vec3(0.46f, 0.28f, 0.02f));
-    drawCube(cubeVAO, lightingShader, podiumBase * screenFace, 0.35f, 0.48f, 0.60f, 0.8f, 128.0f);
-
-    // Teacher's Chair
+    // Teacher's Chair (Rotated 180 degrees so it faces the desk and classroom)
     glm::mat4 tChair = glm::translate(podiumBase, glm::vec3(0.0f, 0.0f, -0.65f));
+    tChair = glm::rotate(tChair, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     drawStudentChair(cubeVAO, lightingShader, tChair);
 }
 
-// 6. Classroom Blackboard (Dark Green Board, Wooden Border & Chalk Tray)
-void drawBlackboard(unsigned int& cubeVAO, Shader& lightingShader, glm::mat4 boardBase)
+// 6. Classroom Front Board: Green Chalkboard / Whiteboard (Projector Screen)
+void drawBlackboard(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, glm::mat4 boardBase, bool isWhiteboard)
 {
     float bWidth = 4.4f;
     float bHeight = 2.1f;
     float posY = 1.4f;
     float posZ = -5.98f;
 
-    // Wooden Border Frame
+    // 1. Outer Border Frame
     glm::mat4 frame = glm::mat4(1.0f);
     frame = glm::translate(frame, glm::vec3(-bWidth / 2.0f, posY, posZ));
     frame = glm::scale(frame, glm::vec3(bWidth, bHeight, 0.04f));
     drawCube(cubeVAO, lightingShader, boardBase * frame, 0.45f, 0.25f, 0.12f);
 
-    // Dark Green Blackboard Surface
+    // 2. Board Surface (Switches between classic Green Chalkboard and pure Whiteboard / Projector Screen)
     float innerW = bWidth - 0.20f;
     float innerH = bHeight - 0.20f;
     glm::mat4 board = glm::mat4(1.0f);
     board = glm::translate(board, glm::vec3(-innerW / 2.0f, posY + 0.10f, posZ + 0.02f));
     board = glm::scale(board, glm::vec3(innerW, innerH, 0.03f));
-    drawCube(cubeVAO, lightingShader, boardBase * board, 0.10f, 0.28f, 0.18f, 0.2f, 16.0f);
 
-    // Chalk Shelf / Ledge along the bottom
+    if (isWhiteboard) {
+        // Pure White Board Surface (Projector ON)
+        drawCube(cubeVAO, lightingShader, boardBase * board, 0.96f, 0.97f, 0.99f, 0.35f, 48.0f);
+    } else {
+        // Classic Dark Green Chalkboard Surface (Projector OFF)
+        drawCube(cubeVAO, lightingShader, boardBase * board, 0.10f, 0.28f, 0.18f, 0.20f, 16.0f);
+    }
+
+    // 3. Accessory Shelf / Ledge along the bottom (Identical for both modes)
     glm::mat4 ledge = glm::mat4(1.0f);
     ledge = glm::translate(ledge, glm::vec3(-innerW / 2.0f, posY + 0.06f, posZ + 0.04f));
     ledge = glm::scale(ledge, glm::vec3(innerW, 0.04f, 0.10f));
     drawCube(cubeVAO, lightingShader, boardBase * ledge, 0.45f, 0.25f, 0.12f);
 
-    // Wooden Chalk Eraser
-    glm::mat4 eraser = glm::mat4(1.0f);
-    eraser = glm::translate(eraser, glm::vec3(0.2f, posY + 0.10f, posZ + 0.06f));
-    eraser = glm::scale(eraser, glm::vec3(0.18f, 0.035f, 0.06f));
-    drawCube(cubeVAO, lightingShader, boardBase * eraser, 0.60f, 0.35f, 0.15f);
+    // 4. Exactly ONE Duster (Eraser) on the shelf for both modes
+    glm::mat4 duster = glm::mat4(1.0f);
+    duster = glm::translate(duster, glm::vec3(0.20f, posY + 0.10f, posZ + 0.06f));
+    duster = glm::scale(duster, glm::vec3(0.18f, 0.035f, 0.06f));
+    drawCube(cubeVAO, lightingShader, boardBase * duster, 0.60f, 0.35f, 0.15f);
 
-    // Chalk Pieces
-    glm::mat4 chalk = glm::mat4(1.0f);
-    chalk = glm::translate(chalk, glm::vec3(-0.3f, posY + 0.10f, posZ + 0.07f));
-    chalk = glm::scale(chalk, glm::vec3(0.08f, 0.02f, 0.02f));
-    drawCube(cubeVAO, lightingShader, boardBase * chalk, 0.98f, 0.98f, 0.98f);
+    // Duster bottom felt pad
+    glm::mat4 dusterFelt = glm::mat4(1.0f);
+    dusterFelt = glm::translate(dusterFelt, glm::vec3(0.20f, posY + 0.095f, posZ + 0.06f));
+    dusterFelt = glm::scale(dusterFelt, glm::vec3(0.18f, 0.005f, 0.06f));
+    drawCube(cubeVAO, lightingShader, boardBase * dusterFelt, 0.25f, 0.25f, 0.25f);
+
+    // 5. Exactly ONE Marker on the shelf for both modes
+    // Marker body
+    glm::mat4 marker = glm::mat4(1.0f);
+    marker = glm::translate(marker, glm::vec3(-0.25f, posY + 0.10f, posZ + 0.065f));
+    marker = glm::scale(marker, glm::vec3(0.13f, 0.022f, 0.022f));
+    drawCube(cubeVAO, lightingShader, boardBase * marker, 0.92f, 0.92f, 0.94f);
+
+    // Marker cap / tip accent (Black cap)
+    glm::mat4 markerCap = glm::mat4(1.0f);
+    markerCap = glm::translate(markerCap, glm::vec3(-0.135f, posY + 0.10f, posZ + 0.065f));
+    markerCap = glm::scale(markerCap, glm::vec3(0.025f, 0.024f, 0.024f));
+    drawCube(cubeVAO, lightingShader, boardBase * markerCap, 0.15f, 0.15f, 0.15f);
 }
 
 // 7. Wall Clock with Animated Clockwise Second Hand
@@ -1429,37 +2073,68 @@ void drawCeilingLightFixture(unsigned int& cubeVAO, Shader& lightingShader, Shad
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 }
 
-// 12. Directed Blackboard Spotlight Fixture
+// 12. Classroom Ceiling Multimedia Digital Projector (Spotlight Source)
 void drawSpotlightFixture(unsigned int& cubeVAO, Shader& lightingShader, Shader& ourShader, 
                           glm::mat4 fixtureBase, bool isSpotlightOn)
 {
-    // Mounting base
-    glm::mat4 base = glm::mat4(1.0f);
-    base = glm::translate(base, glm::vec3(-0.15f, -0.06f, -0.15f));
-    base = glm::scale(base, glm::vec3(0.30f, 0.06f, 0.30f));
-    drawCube(cubeVAO, lightingShader, fixtureBase * base, 0.18f, 0.18f, 0.20f);
+    // The fixtureBase is positioned at (0.0f, 3.85f, -3.2f)
+    // 1. Ceiling Mount Flange & Extension Drop Pole (Reaching up to ceiling at Y = 4.0m)
+    glm::mat4 pole = glm::mat4(1.0f);
+    pole = glm::translate(pole, glm::vec3(-0.025f, 0.0f, -0.025f));
+    pole = glm::scale(pole, glm::vec3(0.05f, 0.15f, 0.05f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * pole, 0.20f, 0.22f, 0.25f, 0.5f, 32.0f);
 
-    // Angled spotlight casing directed at the blackboard
-    glm::mat4 head = glm::mat4(1.0f);
-    head = glm::translate(head, glm::vec3(-0.12f, -0.22f, -0.12f));
-    head = glm::rotate(head, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    head = glm::scale(head, glm::vec3(0.24f, 0.20f, 0.24f));
-    drawCube(cubeVAO, lightingShader, fixtureBase * head, 0.15f, 0.15f, 0.16f);
+    glm::mat4 ceilingPlate = glm::mat4(1.0f);
+    ceilingPlate = glm::translate(ceilingPlate, glm::vec3(-0.10f, 0.13f, -0.10f));
+    ceilingPlate = glm::scale(ceilingPlate, glm::vec3(0.20f, 0.02f, 0.20f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * ceilingPlate, 0.15f, 0.17f, 0.20f);
 
-    // Glowing spotlight lens
+    // 2. Projector Main Chassis (Sleek Matte White / Silver Body, tilted 25 deg towards the board)
+    glm::mat4 projTilt = glm::mat4(1.0f);
+    projTilt = glm::rotate(projTilt, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+    // Projector body: 38cm wide, 11cm high, 28cm deep
+    glm::mat4 body = glm::translate(projTilt, glm::vec3(-0.19f, -0.11f, -0.14f));
+    body = glm::scale(body, glm::vec3(0.38f, 0.11f, 0.28f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * body, 0.88f, 0.89f, 0.91f, 0.5f, 32.0f);
+
+    // Ventilation Exhaust Grills on the side (Dark recessed slats)
+    glm::mat4 ventLeft = glm::translate(projTilt, glm::vec3(-0.195f, -0.09f, -0.08f));
+    ventLeft = glm::scale(ventLeft, glm::vec3(0.01f, 0.07f, 0.16f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * ventLeft, 0.15f, 0.15f, 0.16f);
+
+    glm::mat4 ventRight = glm::translate(projTilt, glm::vec3(0.185f, -0.09f, -0.08f));
+    ventRight = glm::scale(ventRight, glm::vec3(0.01f, 0.07f, 0.16f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * ventRight, 0.15f, 0.15f, 0.16f);
+
+    // Projector Lens Barrel / Shroud (Front face, offset slightly right)
+    glm::mat4 lensBarrel = glm::translate(projTilt, glm::vec3(0.04f, -0.085f, -0.17f));
+    lensBarrel = glm::scale(lensBarrel, glm::vec3(0.10f, 0.075f, 0.04f));
+    drawCube(cubeVAO, lightingShader, fixtureBase * lensBarrel, 0.15f, 0.15f, 0.18f);
+
+    // Glowing Optical Projection Lens Element (Emissive front facing the board at -Z)
     ourShader.use();
-    glm::mat4 lens = glm::mat4(1.0f);
-    lens = glm::translate(lens, glm::vec3(-0.09f, -0.24f, -0.09f));
-    lens = glm::rotate(lens, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    lens = glm::scale(lens, glm::vec3(0.18f, 0.03f, 0.18f));
-    ourShader.setMat4("model", fixtureBase * lens);
+    glm::mat4 lensGlass = glm::translate(projTilt, glm::vec3(0.05f, -0.075f, -0.175f));
+    lensGlass = glm::scale(lensGlass, glm::vec3(0.08f, 0.055f, 0.01f));
+    ourShader.setMat4("model", fixtureBase * lensGlass);
 
     if (isSpotlightOn) {
-        ourShader.setVec3("color", glm::vec3(1.0f, 0.96f, 0.85f));
+        ourShader.setVec3("color", glm::vec3(0.85f, 0.95f, 1.0f)); // Bright cyan-white projector light beam source
     } else {
-        ourShader.setVec3("color", glm::vec3(0.20f, 0.20f, 0.20f));
+        ourShader.setVec3("color", glm::vec3(0.12f, 0.15f, 0.20f)); // Dark glass when OFF
     }
+    glBindVertexArray(cubeVAO);
+    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
+    // Projector Top Status LEDs (Power & Lamp indicator lights)
+    glm::mat4 pwrLed = glm::translate(projTilt, glm::vec3(-0.12f, 0.002f, 0.06f));
+    pwrLed = glm::scale(pwrLed, glm::vec3(0.015f, 0.005f, 0.015f));
+    ourShader.setMat4("model", fixtureBase * pwrLed);
+    if (isSpotlightOn) {
+        ourShader.setVec3("color", glm::vec3(0.1f, 0.95f, 0.3f)); // Glowing Green Power LED
+    } else {
+        ourShader.setVec3("color", glm::vec3(0.85f, 0.2f, 0.1f)); // Amber/Red Standby LED
+    }
     glBindVertexArray(cubeVAO);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 }
@@ -1474,109 +2149,118 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 
     // ---------------------------------------------------------------------
-    // 1. Easy Camera Navigation using Keyboard 4 Arrow Keys & WASD
+    // 1. Camera Navigation using ONLY Keyboard Arrow Keys (Unchanged)
     // ---------------------------------------------------------------------
     float moveSpeed = camera.MovementSpeed;
     float turnSpeed = 65.0f; // degrees per second for smooth keyboard looking
 
     bool shiftPressed = (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || 
                          glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS);
+    bool translateMode = (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS);
+    bool scaleMode     = (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS);
 
-    // Forward / Backward / Vertical Navigation with Up/Down Arrow & W/S:
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+    // If neither T (Translate) nor M (Scale) is held, arrow keys move the CAMERA:
+    if (!translateMode && !scaleMode)
     {
-        if (shiftPressed) {
-            // Shift + Up Arrow: Move Camera Height UP (replaces E)
-            camera.Position.y += moveSpeed * deltaTime;
-        } else {
-            camera.ProcessKeyboard(FORWARD, deltaTime);
+        // Forward / Backward / Vertical Altitude Navigation
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        {
+            if (shiftPressed) {
+                // Shift + Up Arrow: Fly Upward
+                camera.Position.y += moveSpeed * deltaTime;
+            } else {
+                camera.ProcessKeyboard(FORWARD, deltaTime);
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        {
+            if (shiftPressed) {
+                // Shift + Down Arrow: Fly Downward
+                camera.Position.y = std::max(0.2f, camera.Position.y - moveSpeed * deltaTime);
+            } else {
+                camera.ProcessKeyboard(BACKWARD, deltaTime);
+            }
+        }
+
+        // Left / Right Turning & Strafing
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        {
+            if (shiftPressed) {
+                camera.ProcessKeyboard(LEFT, deltaTime);
+            } else {
+                camera.Yaw -= turnSpeed * deltaTime;
+                camera.updateCameraVectors();
+            }
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        {
+            if (shiftPressed) {
+                camera.ProcessKeyboard(RIGHT, deltaTime);
+            } else {
+                camera.Yaw += turnSpeed * deltaTime;
+                camera.updateCameraVectors();
+            }
         }
     }
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camera.ProcessKeyboard(FORWARD, deltaTime);
-
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
-    {
-        if (shiftPressed) {
-            // Shift + Down Arrow: Move Camera Height DOWN (replaces Q)
-            camera.Position.y = std::max(0.2f, camera.Position.y - moveSpeed * deltaTime);
-        } else {
-            camera.ProcessKeyboard(BACKWARD, deltaTime);
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camera.ProcessKeyboard(BACKWARD, deltaTime);
-
-    // Left Navigation (Left Arrow: turn look left by default; strafe left with Shift)
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
-    {
-        if (shiftPressed)
-            camera.ProcessKeyboard(LEFT, deltaTime);
-        else {
-            camera.Yaw -= turnSpeed * deltaTime;
-            camera.updateCameraVectors();
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camera.ProcessKeyboard(LEFT, deltaTime);
-
-    // Right Navigation (Right Arrow: turn look right by default; strafe right with Shift)
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
-    {
-        if (shiftPressed)
-            camera.ProcessKeyboard(RIGHT, deltaTime);
-        else {
-            camera.Yaw += turnSpeed * deltaTime;
-            camera.updateCameraVectors();
-        }
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camera.ProcessKeyboard(RIGHT, deltaTime);
-
-    // Optional PageUp / PageDown for vertical camera height
-    if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS)
-        camera.Position.y += moveSpeed * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS)
-        camera.Position.y = std::max(0.2f, camera.Position.y - moveSpeed * deltaTime);
 
     // ---------------------------------------------------------------------
-    // 2. Interactive 3D Model Transformations
+    // 2. Interactive 3D Room Transformations (Mnemonic & Clean!)
     // ---------------------------------------------------------------------
-    // Rotation (X, Y, Z, R)
-    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-    {
-        if (rotateAxis_X) rotateAngle_X -= 15.0f * deltaTime;
-        else if (rotateAxis_Y) rotateAngle_Y -= 15.0f * deltaTime;
-        else rotateAngle_Z -= 15.0f * deltaTime;
-    }
+    // Rotation: Keys X, Y, Z (Hold Shift to reverse rotation direction)
+    float rotDir = shiftPressed ? -1.0f : 1.0f;
     if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS)
     {
-        rotateAngle_X += 15.0f * deltaTime;
+        rotateAngle_X += rotDir * 20.0f * deltaTime;
         rotateAxis_X = 1.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 0.0f;
     }
     if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
     {
-        rotateAngle_Y += 15.0f * deltaTime;
+        rotateAngle_Y += rotDir * 20.0f * deltaTime;
         rotateAxis_X = 0.0f; rotateAxis_Y = 1.0f; rotateAxis_Z = 0.0f;
     }
     if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS)
     {
-        rotateAngle_Z += 15.0f * deltaTime;
+        rotateAngle_Z += rotDir * 20.0f * deltaTime;
         rotateAxis_X = 0.0f; rotateAxis_Y = 0.0f; rotateAxis_Z = 1.0f;
     }
 
-    // Translation (I, K, J, L, P)
-    if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) translate_Y += 1.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS) translate_Y -= 1.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS) translate_X += 1.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS) translate_X -= 1.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) translate_Z -= 1.5f * deltaTime;
+    // Translation: T + Arrow Keys (T matches Translate!)
+    if (translateMode)
+    {
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        {
+            if (shiftPressed) translate_Y += 1.5f * deltaTime; // T + Shift + Up: Upward
+            else              translate_Z += 1.5f * deltaTime; // T + Up: Forward
+        }
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        {
+            if (shiftPressed) translate_Y -= 1.5f * deltaTime; // T + Shift + Down: Downward
+            else              translate_Z -= 1.5f * deltaTime; // T + Down: Backward
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+            translate_X -= 1.5f * deltaTime;                  // T + Left: Left
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+            translate_X += 1.5f * deltaTime;                  // T + Right: Right
+    }
 
-    // Scaling (C, N, M, U)
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) scale_X += 0.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS) scale_Y = max(0.1f, scale_Y - 0.5f * deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS) scale_Z += 0.5f * deltaTime;
-    if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) scale_Z = max(0.1f, scale_Z - 0.5f * deltaTime);
+    // Scaling: M + Up / Down (M matches Magnify / Scale!)
+    if (scaleMode)
+    {
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        {
+            scale_X += 0.5f * deltaTime;
+            scale_Y += 0.5f * deltaTime;
+            scale_Z += 0.5f * deltaTime;
+        }
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        {
+            scale_X = std::max(0.2f, scale_X - 0.5f * deltaTime);
+            scale_Y = std::max(0.2f, scale_Y - 0.5f * deltaTime);
+            scale_Z = std::max(0.2f, scale_Z - 0.5f * deltaTime);
+        }
+    }
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -1585,55 +2269,100 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         return;
 
     // --- REQUIREMENT 2: THE 4 CORE CAMERA VIEWS (KEYS 1, 2, 3, 4) ---
-    // When clicking the 4 keys, it immediately arrives at each perspective:
-    if (key == GLFW_KEY_1 || key == GLFW_KEY_B) setCameraPreset(VIEW_BACK);     // Key 1: Back / Initial View
-    if (key == GLFW_KEY_2 || key == GLFW_KEY_G) setCameraPreset(VIEW_SIDE);     // Key 2: Side View
-    if (key == GLFW_KEY_3 || key == GLFW_KEY_T) setCameraPreset(VIEW_TOP);      // Key 3: Top View
-    if (key == GLFW_KEY_4 || key == GLFW_KEY_F) setCameraPreset(VIEW_TEACHER);  // Key 4: Teacher View
+    // 1 Dedicated Key per View
+    if (key == GLFW_KEY_1) setCameraPreset(VIEW_BACK);     // Key 1: Back / Initial View
+    if (key == GLFW_KEY_2) setCameraPreset(VIEW_SIDE);     // Key 2: Side View
+    if (key == GLFW_KEY_3) setCameraPreset(VIEW_TOP);      // Key 3: Top View
+    if (key == GLFW_KEY_4) setCameraPreset(VIEW_TEACHER);  // Key 4: Front / Teacher View
 
-    // Reset to Initial View: Key 0, HOME, or BACKSPACE
-    if (key == GLFW_KEY_0 || key == GLFW_KEY_HOME || key == GLFW_KEY_BACKSPACE)
+    // --- RESET VIEW & TRANSFORMATION: KEY R ---
+    // R matches Reset!
+    if (key == GLFW_KEY_R)
     {
         setCameraPreset(VIEW_BACK);
+        rotateAngle_X = 0.0f; rotateAngle_Y = 0.0f; rotateAngle_Z = 0.0f;
+        translate_X = 0.0f;   translate_Y = 0.0f;   translate_Z = 0.0f;
+        scale_X = 1.0f;       scale_Y = 1.0f;       scale_Z = 1.0f;
+        pointLightOn = true;
+        pointLight1On = true; pointLight2On = true;
+        pointLight3On = true; pointLight4On = true;
+        pointlight1.turnOn(); pointlight2.turnOn();
+        pointlight3.turnOn(); pointlight4.turnOn();
+        isProjectorOn = false;
+        blackboardSpotlight.turnOff();
+        cout << "[Reset] Camera, Lights, Projector & Room Transformation reset to initial state" << endl;
     }
 
-    // Cycle through the 4 views: Key V or TAB
-    if (key == GLFW_KEY_V || key == GLFW_KEY_TAB)
-    {
-        int nextMode = (currentView + 1) % 4; // Cycles: View 1 -> 2 -> 3 -> 4 -> 1
-        setCameraPreset((CameraViewMode)nextMode);
-    }
-
-    // --- REQUIREMENT 3: INTERACTIVE DOOR OPEN / CLOSE (KEY O) ---
-    if (key == GLFW_KEY_O)
+    // --- INTERACTIVE DOOR: KEY D ---
+    // D matches Door!
+    if (key == GLFW_KEY_D)
     {
         isDoorOpen = !isDoorOpen;
         cout << "[Door] " << (isDoorOpen ? "OPENING (Swinging Inward)" : "CLOSING") << endl;
     }
 
-    // --- CEILING FAN CONTROLS ---
-    // Toggle fan rotation on/off
-    if (key == GLFW_KEY_SPACE)
+    // --- CEILING FAN: KEY F ---
+    // F matches Fan!
+    if (key == GLFW_KEY_F)
     {
         isFanOn = !isFanOn;
         cout << "[Ceiling Fan] " << (isFanOn ? "ROTATING (ON)" : "STOPPED (OFF)") << endl;
     }
-    // Increase fan speed
+
+    // --- FAN SPEED: KEYS + and - ---
+    // + matches Plus (Increase) and - matches Minus (Decrease)
     if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD)
     {
         fanSpeed += 60.0f;
         cout << "[Ceiling Fan] Speed increased to " << fanSpeed << " deg/s" << endl;
     }
-    // Decrease fan speed
     if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT)
     {
         fanSpeed = max(0.0f, fanSpeed - 60.0f);
         cout << "[Ceiling Fan] Speed decreased to " << fanSpeed << " deg/s" << endl;
     }
 
-    // --- REQUIREMENT 4: TWO KINDS OF LIGHT CONTROLS ---
-    // 1. Toggle Point Lights (Ceiling fixtures): Key L or Key 8
-    if (key == GLFW_KEY_L || key == GLFW_KEY_8)
+    // --- 4 DEDICATED KEYS FOR 4 POINT LIGHTS (KEYS 5, 6, 7, 8) ---
+    // Key 5: Toggle Point Light 1 (Front-Left Ceiling Fixture)
+    if (key == GLFW_KEY_5)
+    {
+        pointLight1On = !pointLight1On;
+        if (pointLight1On) pointlight1.turnOn();
+        else pointlight1.turnOff();
+        pointLightOn = (pointLight1On || pointLight2On || pointLight3On || pointLight4On);
+        cout << "[Point Light 1] Front-Left Ceiling Light: " << (pointLight1On ? "ON" : "OFF") << endl;
+    }
+    // Key 6: Toggle Point Light 2 (Front-Right Ceiling Fixture)
+    if (key == GLFW_KEY_6)
+    {
+        pointLight2On = !pointLight2On;
+        if (pointLight2On) pointlight2.turnOn();
+        else pointlight2.turnOff();
+        pointLightOn = (pointLight1On || pointLight2On || pointLight3On || pointLight4On);
+        cout << "[Point Light 2] Front-Right Ceiling Light: " << (pointLight2On ? "ON" : "OFF") << endl;
+    }
+    // Key 7: Toggle Point Light 3 (Back-Left Ceiling Fixture)
+    if (key == GLFW_KEY_7)
+    {
+        pointLight3On = !pointLight3On;
+        if (pointLight3On) pointlight3.turnOn();
+        else pointlight3.turnOff();
+        pointLightOn = (pointLight1On || pointLight2On || pointLight3On || pointLight4On);
+        cout << "[Point Light 3] Back-Left Ceiling Light: " << (pointLight3On ? "ON" : "OFF") << endl;
+    }
+    // Key 8: Toggle Point Light 4 (Back-Right Ceiling Fixture)
+    if (key == GLFW_KEY_8)
+    {
+        pointLight4On = !pointLight4On;
+        if (pointLight4On) pointlight4.turnOn();
+        else pointlight4.turnOff();
+        pointLightOn = (pointLight1On || pointLight2On || pointLight3On || pointLight4On);
+        cout << "[Point Light 4] Back-Right Ceiling Light: " << (pointLight4On ? "ON" : "OFF") << endl;
+    }
+
+    // --- CEILING LIGHTS MASTER SWITCH: KEY L (UNCHANGED) ---
+    // L matches Light (Ceiling point lights)!
+    if (key == GLFW_KEY_L)
     {
         if (pointLightOn) {
             pointlight1.turnOff();
@@ -1641,6 +2370,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             pointlight3.turnOff();
             pointlight4.turnOff();
             pointLightOn = false;
+            pointLight1On = false;
+            pointLight2On = false;
+            pointLight3On = false;
+            pointLight4On = false;
             cout << "[Point Lights] OFF" << endl;
         } else {
             pointlight1.turnOn();
@@ -1648,63 +2381,30 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             pointlight3.turnOn();
             pointlight4.turnOn();
             pointLightOn = true;
+            pointLight1On = true;
+            pointLight2On = true;
+            pointLight3On = true;
+            pointLight4On = true;
             cout << "[Point Lights] ON" << endl;
         }
     }
 
-    // 2. Toggle Spotlight (Blackboard Lamp): Key K or Key 9
-    if (key == GLFW_KEY_K || key == GLFW_KEY_9)
+    // --- PROJECTOR & WHITEBOARD SCREEN: KEY P (or S) ---
+    // P matches Projector!
+    // 1 single key controls both the projector spotlight AND changes the board color to white!
+    if (key == GLFW_KEY_P || key == GLFW_KEY_S)
     {
-        blackboardSpotlight.toggle();
-        cout << "[Spotlight] " << (blackboardSpotlight.isOn ? "ON (Focused on Blackboard)" : "OFF") << endl;
-    }
-
-    // Ambient light intensity adjustments
-    if (key == GLFW_KEY_2)
-    {
-        pointlight1.ambient += 0.05f; pointlight2.ambient += 0.05f;
-        pointlight3.ambient += 0.05f; pointlight4.ambient += 0.05f;
-        cout << "[Lighting] Ambient increased" << endl;
-    }
-    if (key == GLFW_KEY_3)
-    {
-        pointlight1.ambient = max(glm::vec3(0.0f), pointlight1.ambient - 0.05f);
-        pointlight2.ambient = max(glm::vec3(0.0f), pointlight2.ambient - 0.05f);
-        pointlight3.ambient = max(glm::vec3(0.0f), pointlight3.ambient - 0.05f);
-        pointlight4.ambient = max(glm::vec3(0.0f), pointlight4.ambient - 0.05f);
-        cout << "[Lighting] Ambient decreased" << endl;
-    }
-
-    // Diffuse light intensity adjustments
-    if (key == GLFW_KEY_4)
-    {
-        pointlight1.diffuse += 0.1f; pointlight2.diffuse += 0.1f;
-        pointlight3.diffuse += 0.1f; pointlight4.diffuse += 0.1f;
-        cout << "[Lighting] Diffuse increased" << endl;
-    }
-    if (key == GLFW_KEY_5)
-    {
-        pointlight1.diffuse = max(glm::vec3(0.0f), pointlight1.diffuse - 0.1f);
-        pointlight2.diffuse = max(glm::vec3(0.0f), pointlight2.diffuse - 0.1f);
-        pointlight3.diffuse = max(glm::vec3(0.0f), pointlight3.diffuse - 0.1f);
-        pointlight4.diffuse = max(glm::vec3(0.0f), pointlight4.diffuse - 0.1f);
-        cout << "[Lighting] Diffuse decreased" << endl;
-    }
-
-    // Specular light intensity adjustments
-    if (key == GLFW_KEY_6)
-    {
-        pointlight1.specular += 0.1f; pointlight2.specular += 0.1f;
-        pointlight3.specular += 0.1f; pointlight4.specular += 0.1f;
-        cout << "[Lighting] Specular increased" << endl;
-    }
-    if (key == GLFW_KEY_7)
-    {
-        pointlight1.specular = max(glm::vec3(0.0f), pointlight1.specular - 0.1f);
-        pointlight2.specular = max(glm::vec3(0.0f), pointlight2.specular - 0.1f);
-        pointlight3.specular = max(glm::vec3(0.0f), pointlight3.specular - 0.1f);
-        pointlight4.specular = max(glm::vec3(0.0f), pointlight4.specular - 0.1f);
-        cout << "[Lighting] Specular decreased" << endl;
+        isProjectorOn = !isProjectorOn;
+        if (isProjectorOn)
+        {
+            blackboardSpotlight.turnOn();
+            cout << "[Projector & Screen] ON (Spotlight active, Board changed to Whiteboard / Projection Screen)" << endl;
+        }
+        else
+        {
+            blackboardSpotlight.turnOff();
+            cout << "[Projector & Screen] OFF (Spotlight off, Board restored to Classic Green Chalkboard)" << endl;
+        }
     }
 }
 
